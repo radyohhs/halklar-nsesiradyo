@@ -330,6 +330,11 @@ if not ably_api_key:
         ably_api_key = _env_key
         ably_key_source = "env"
 
+ably_channel = st.secrets.get("ABLY_CHANNEL", "radyo-chat") if hasattr(st, "secrets") else "radyo-chat"
+_env_channel = os.getenv("ABLY_CHANNEL")
+if _env_channel:
+    ably_channel = _env_channel
+
 ably_token = None
 ably_error = None
 
@@ -341,13 +346,9 @@ else:
     try:
         ably = AblyRest(ably_api_key)
         # Token (kısa ömürlü) üret; çok sekmeli kullanımda TokenRequest'ten daha stabil
-        _tok = ably.auth.request_token(
-            {
-                "client_id": "radyo-web",
-                # Kanal attach/publish/subscribe için açık yetki ver
-                "capability": json.dumps({"radyo-chat": ["publish", "subscribe"]}),
-            }
-        )
+        # Capability istemiyoruz: Ably key'in kendi capability'si ile kesişim bazen boş olabiliyor.
+        # (40160: Intersection ... is empty)
+        _tok = ably.auth.request_token({"client_id": "radyo-web"})
 
         if asyncio.iscoroutine(_tok):
             _tok = asyncio.run(_tok)
@@ -369,6 +370,7 @@ data_json = json.dumps(
         "imgs": IMG,
         "newroz": NEWROZ_MSGS,
         "ablyToken": ably_token,
+        "ablyChannel": ably_channel,
         "ablyEnabled": bool(ably_token),
         "ablyError": ably_error,
         "ablyKeySource": ably_key_source,
@@ -673,7 +675,8 @@ html_code = f"""
         const realtime = new Ably.Realtime({{
             token: radioData.ablyToken
         }});
-        const channel = realtime.channels.get('radyo-chat');
+        const channelName = radioData.ablyChannel || 'radyo-chat';
+        const channel = realtime.channels.get(channelName);
 
         const setStatus = (s) => {{ if (statusEl) statusEl.textContent = s; }};
         if (sendEl) sendEl.disabled = true;
