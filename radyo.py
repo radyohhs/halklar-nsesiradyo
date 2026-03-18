@@ -341,7 +341,13 @@ else:
     try:
         ably = AblyRest(ably_api_key)
         # Token (kısa ömürlü) üret; çok sekmeli kullanımda TokenRequest'ten daha stabil
-        _tok = ably.auth.request_token({"client_id": "radyo-web"})
+        _tok = ably.auth.request_token(
+            {
+                "client_id": "radyo-web",
+                # Kanal attach/publish/subscribe için açık yetki ver
+                "capability": json.dumps({"radyo-chat": ["publish", "subscribe"]}),
+            }
+        )
 
         if asyncio.iscoroutine(_tok):
             _tok = asyncio.run(_tok)
@@ -677,7 +683,8 @@ html_code = f"""
         }});
 
         channel.on((state) => {{
-            setStatus("Chat: " + realtime.connection.state + " / kanal: " + state.current);
+            const reason = (state && state.reason) ? (" (" + (state.reason.message || String(state.reason)) + ")") : "";
+            setStatus("Chat: " + realtime.connection.state + " / kanal: " + state.current + reason);
             if (sendEl) sendEl.disabled = !(realtime.connection.state === 'connected' && state.current === 'attached');
         }});
 
