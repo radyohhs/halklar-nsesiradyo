@@ -1,0 +1,941 @@
+import streamlit as st
+import json
+import streamlit.components.v1 as components
+import os
+
+try:
+    from ably import AblyRest
+except Exception:
+    AblyRest = None
+
+# 1. SAYFA YAPILANDIRMASI
+st.set_page_config(page_title="HALKLARIN SESİ RADYOSU", layout="wide")
+
+
+# 2. GÖRSEL VERİLERİ
+IMG = {
+    "grup_yorum": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/Grup%20Yorum.jpg",
+    "soldan_sesler": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/gemini_generated_image_7s372s7s372s7s37.png",
+    "tiyatro": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/Gemini_Generated_Image_cuudxvcuudxvcuud.png",
+    "tasavvuf": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/sufi.jpg",
+    "ermeni_ezgileri": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/ermenice.jpg",
+    "mozaik": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/Gemini_Generated_Image_ychv77ychv77ychv.png",
+    "tsm": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/gemini_generated_image_v8oe83v8oe83v8oe.png",
+    "anadolu_rock": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/Gemini_Generated_Image_cn6f9gcn6f9gcn6f.png",
+    "ahmet_kaya" :"https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/Gemini_Generated_Image_t4ub36t4ub36t4ub.png"
+}
+
+NEWROZ_MSGS = [
+    "NEWROZ PÎROZ BE!",
+    "NEWROZ KUTLU OLSUN!",
+    "NEWROZÊ ŞIMA PÎROZ BO!",
+    "Շնորհավոր Նավասարդ․",  # Ermenice
+    "ܢܘܪܘܙ ܒܪܝܟܐ! ܚܕ ܢܘܪܘܙܐ ܒܪܝܟܐ",           # Süryanice
+    "عيد نوروز سعيد!",
+    "نوروز مبارک!"
+]
+
+# 3. TÜM LİNKLER - EKSİKSİZ VE ALT ALTA (DÖNGÜSÜZ)
+
+# --- AHMET KAYA (TAM LİSTE) ---
+AK = [
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/acilara_tutunmak_ahmet_kaya_5jhupqfjoac.mp3", "duration": 238},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/ahmet_kaya_basim_belada_qzmnx95myfa.mp3", "duration": 244},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/ahmet_kaya_dogumgunu_cszsqpfbygq.mp3", "duration": 188},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/ahmet_kaya_gel_hadi_gel_w8maklsq1hi.mp3", "duration": 191},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/ahmet_kaya_kacakci_kurban_wm5jfbn2lcs.mp3", "duration": 226},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/ahmet_kaya_kadinlar_yuruyor_daglara_dogru_ukn9q3tstrw.mp3", "duration": 157},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/ahmet_kaya_kalan_kalir_pts6azk763k.mp3", "duration": 223},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/ahmet_kaya_siire_gazele_z8qaeubsir8.mp3", "duration": 244},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/ahmet_kaya_kendine_iyi_bak_vp8nmlqfqrq.mp3", "duration": 263},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/ay_gidiyor_ahmet_kaya_vd3s6_xejmk.mp3", "duration": 352},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/baskaldiriyorum_ahmet_kaya_ptl7h0kdp1m.mp3", "duration": 172},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/beni_vur_ahmet_kaya_7wvth8y4xe8.mp3", "duration": 325},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/giderim_ahmet_kaya_j8wbl3dey48.mp3", "duration": 287},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/kod_adi_bahtiyar_ahmet_kaya_orgk6iiqw4g.mp3", "duration": 335},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/icimde_olen_biri_ahmet_kaya_3v4vqogwkza.mp3", "duration": 242},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/kum_gibi_ahmet_kaya_1miwaizwjbk.mp3", "duration": 281},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/mahur_gayc2binl54.mp3", "duration": 317},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ahmet%20Kaya/safak_turkusu_ahmet_kaya_iiway4mc7pk.mp3", "duration": 413}
+]
+
+# --- SOLDAN SESLER (TAM LİSTE) ---
+SS = [
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/adalilar_devrim_marsi_l0szt_cnh8o.mp3", "duration": 244},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/bandista_haydi_barikata_ax5nsjo0f9w.mp3", "duration": 186},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/bekci_kazim_turkusu_6rgwd3wxppa.mp3", "duration": 194},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/dev_genc_marsi_x_lbw73uvmk.mp3", "duration": 165},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/elbruz_daglari_antifasist_kafkas_turkusu_et9q0j1o9n4.mp3", "duration": 244},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/ew_ser_sere_meye_rizgariya_me_ye_grup_isyan_atesi_biji_biji_kobane_czg7w_3c_yq.mp3", "duration": 178},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/grup_ekin_istanbul_safaklari_gun_bizim_1993_kalan_muzik_31mcbyjebfc.mp3", "duration": 256},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/grup_ekin_varsa_cesaretiniz_gelin_gun_bizim_1993_kalan_muzik_qxscowxwtp8.mp3", "duration": 201},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/grup_munzur_isyan_atesi_official_music_video_1993_ses_plak_uass4xb8k3i.mp3", "duration": 243},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/grup_ozgurluk_dersim_sdwzkb4hv10.mp3", "duration": 129},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/grup_ozgurluk_suphan_dagi_syu_l_p6f1a.mp3", "duration": 198},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/grup_vardiya_birlik_marsi_dsmmtq3ed6m.mp3", "duration": 225},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/grup_vardiya_ibrahim_yoldas_ibrahimkaypakkaya_18mayis1973_1gqp2xwhqye.mp3", "duration": 264},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/gulcan_altan_omuz_ver_wysww8eseay.mp3", "duration": 220},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/sonbahardan_cizgiler_ofkasxnrwuu.mp3", "duration": 262},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/yeni_turku_beyazit_meydani_ndaki_olu_bugdayinturkusu_adamuzik_oa0x20kedek.mp3", "duration": 236},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/yeni_turku_isci_marsi_bugdayinturkusu_adamuzik_wghv3_8hro4.mp3", "duration": 175},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/yeni_turku_maphusane_kapisi_bugdayinturkusu_adamuzik_sdv8oa59ov8.mp3", "duration": 201},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/yeni_turku_ozgurluk_bugdayinturkusu_adamuzik_yx5ew6v_dzq.mp3", "duration": 247},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_bir_mayis.mp3", "duration": 215},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_cav_bella.mp3", "duration": 165},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_defol_amerika.mp3", "duration": 145},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_kizildere.mp3", "duration": 215},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_hakliyiz_kazanacagiz.mp3", "duration": 265},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_daglara_gel.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_defol_amerika.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_devrim_yuruyusumuz_suruyor.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_dunya_haklari_kardestir_bu_memleket_bizim.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_dusenlere.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_ellerinde_pankartlar.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_gel_ki_safaklar_tutussun.mp3", "duration": 240},
+    
+]
+
+# --- GRUP YORUM (TAM LİSTE - TEK TEK) ---
+GY = [
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_avusturya_isci_marsi.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_bagcilar_da_uc_karanfil.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_basegmeden.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_berivan.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_bir_gorus_kabininde....mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_bir_mayis.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_biz_hic_teslim_olmadik_ki.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_bugun_pazar.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_buyu.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_cav_bella.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_cemo.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_daglara_dogru.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_daglara_gel.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_defol_amerika.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_devrim_yuruyusumuz_suruyor.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_dunya_haklari_kardestir_bu_memleket_bizim.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_dusenlere.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_ellerinde_pankartlar.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_gel_ki_safaklar_tutussun.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_gowenda_gelan.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_gun_dogdu.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_hakikat_savascisi.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_hakliyiz_kazanacagiz.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_halkin_elleri.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_hasta_siempre.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_haziranda_olmek_zor.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_ille_kavga.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_ince_memed.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_insan_pazari.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_karadir_kaslarin.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_kizildere.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_le_hanim.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_omuzdan_tutun_beni.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_sahan_kanatlilar.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_selam_olsun.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_sisli_meydaninda_uc_kiz.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_siyrilip_gelen.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_soluk_soluga.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_sur_gerilla.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_ugurlama.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_uyan_berkin.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_uyur_idik_uyardilar.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_uzatin_ellerinizi.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_yarin_bizimdir.mp3", "duration": 240}
+]
+
+# --- RADYO TİYATROSU (TAM LİSTE) ---
+RT = [
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_1.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_2.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_3.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_4.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_5.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_6.mp3", "duration": 1800}
+]
+
+# --- TASAVVUF / DEYİŞLER (ÖZEL PLAYLIST) ---
+TASAVVUF = [
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/affet_isyanim_ding_qse0i8.mp3", "duration": 260.62},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/bu_ask_bir_bahri_ummandir_sbykofwdr2a.mp3", "duration": 337.92},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/derman_arardim_derdime_cdezyaefpes.mp3", "duration": 187.22},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/guzel_asik_cevrimizi_eshzeetynh0.mp3", "duration": 373.89},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/kus_dili_sureyya_akay_dem_i_devran_1_utei4rpbafy.mp3", "duration": 205.14},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/sah_hatayi_ozun_egri_ise_yola_zararsin_kzpucljxkrm.mp3", "duration": 275.51},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/sarab_i_askini_nus_ettir_ya_rab_sybn6bvtcos.mp3", "duration": 235.73},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/seni_ben_severim_candan_iceru_rdgn7wrifaw.mp3", "duration": 324.55},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/tefvizname_askin_yolculugu_4scxbavswcc.mp3", "duration": 315.04},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Tasavvuf/uyur_idik_uyardilar_a_mqqooiits.mp3", "duration": 570.54}
+]
+ERMENICE = [
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/antsnink_sasun_lets_take_sasun_armenian_revolutionary_patriotic_song_x4z_qsvrzte.mp3", "duration": 230.82},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/ara_dinkjian_ny_gypsy_all_stars_annatolya_homecoming_5vc7fk9_v8k.mp3", "duration": 470.52},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/arax_baleni_av050sam0po.mp3", "duration": 245.11},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/bingyol_ucyf7mj7m_i.mp3", "duration": 178.52},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/collectif_medz_bazar_done_yar_armenian_traditional_song_ao_vivo_na_porta_253_snmptls8tu4.mp3", "duration": 274.68},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/erzeroumi_shoror_00uw9kgz4qm.mp3", "duration": 250.04},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/garik_sona_mayro_official_video_i78nu40y9zq.mp3", "duration": 215.12},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/grup_knar_ermeniyiz_meskanimiz_anadoludan_kafkaslara_ermeni_muzigi_2015_kalan_muzik_1vpmmhd1_la.mp3", "duration": 311.01},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/grup_knar_sasna_saran_anadoludan_kafkaslara_ermeni_muzigi_2015_kalan_muzik_ga6cy9_34ms.mp3", "duration": 362.16},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/ilda_simonian_adana_agidi_fmmugu5f34a.mp3", "duration": 233.59},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/ilda_simonian_bingoli_lq8z50wf97w.mp3", "duration": 200.59},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/ilda_simonian_dagli_gelin_sari_gelin_gftm7c_za7i.mp3", "duration": 173.09},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/kalenderi_dehri_gezsen.mp3", "duration": 305.35},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/knar_ay_nare_nare_nare_yar_jxbbtgnn9fg.mp3", "duration": 383.03},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/knar_ari_ari_ha_ninna_ninno_9qvkp6j85vs.mp3", "duration": 356.13},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/knar_makruhi_can_yuhfsh6ygok.mp3", "duration": 183.07},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/leylum_24kpck99jwy.mp3", "duration": 372.14},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/lilit_pipoyan_gulo_koulo_49ojbh5fnxu.mp3", "duration": 177.14},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/lilit_pipoyan_tsankutiun_wish_sdorjyverbc.mp3", "duration": 194.48},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/nemra_nare_official_video_jyzbcnoxqku.mp3", "duration": 249.05},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/rewsan_liana_benli_salik_snok_mayro_xy79jjdpp94.mp3", "duration": 402.96},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/sareri_hovin_mernem_yvopp5rereq.mp3", "duration": 266.42},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Ermenice/zulal_mer_dan_idev_qnhbb24nvdg.mp3", "duration": 103.05}
+]
+
+MOZAIK = [
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/ana_la_habibi_5uamf21kpk4.mp3", "duration": 180.90},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/anadolu_quartet_sakina_lo_sivono_official_audio_zytri7f8od4.mp3", "duration": 337.21},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/antsnink_sasun_lets_take_sasun_armenian_revolutionary_patriotic_song_x4z_qsvrzte.mp3", "duration": 230.82},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/babetna_khosha_hawraman_sb83_t5ivra.mp3", "duration": 217.29},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/bingyol_ucyf7mj7m_i.mp3", "duration": 178.52},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/e_m_e_l_holm_a_dream_official_video_d2snx3bfykw.mp3", "duration": 285.39},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/emel_mathlouthi_ma_lkit_official_video_gdiz2i_xwt8.mp3", "duration": 237.74},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/emel_mathlouthi_naci_en_palestina_qhswc47rqzm.mp3", "duration": 253.20},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/fairuz_bint_el_shalabiya_briw30_4prm.mp3", "duration": 188.24},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/fairuz_kifak_inta_lyric_video_nvr4lpokqzi.mp3", "duration": 213.47},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/fairuz_le_beirut_8ayx6zspbgg.mp3", "duration": 251.30},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/garik_sona_mayro_official_video_i78nu40_y9zq.mp3", "duration": 215.12},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/grup_knar_sasna_saran_anadoludan_kafkaslara_ermeni_muzigi_2015_kalan_muzik_ga6cy9_34ms.mp3", "duration": 362.16},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/grup_munzur_namag.mp3", "duration": 262.84},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/ilda_simonian_bingoli_lq8z50wf97w.mp3", "duration": 200.59},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/ilda_simonian_dagli_gelin_sari_gelin_gftm7c_za7i.mp3", "duration": 173.09},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/julia_boutros_3aba_majdaka_platea_2014_d2fk_hhtvo.mp3", "duration": 212.87},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/knar_ari_ari_ha_ninna_ninno_9qvkp6j85vs.mp3", "duration": 356.13},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/knar_ay_nare_nare_nare_yar_jxbbtgnn9fg.mp3", "duration": 383.03},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/konna_netlaka_ghyhvqhyevi.mp3", "duration": 203.00},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/lamma_bada_yatathana_3dq6716xkwa.mp3", "duration": 241.53},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/le_xanim_deresore_ax_wey_lo_lorke_8f6x_6e5vby.mp3", "duration": 280.22},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/lena_chamamyan_love_in_damascus_vnjnrcrvjtk.mp3", "duration": 304.33},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/leylum_24kpck99jwy.mp3", "duration": 372.14},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/lilit_pipoyan_gulo_koulo_49ojbh5fnxu.mp3", "duration": 177.14},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/maii_and_zeid_kalam_el_leil_tdvuxpsl33g.mp3", "duration": 168.80},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/mikail_aslan_hamam_petag_dersim_ermeni_halk_sarkilari_2010_kalan_muzik_0iog_bksbfa.mp3", "duration": 198.79},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/mikail_aslan_surp_garabede_gitmisim_petag_2010_kalan_muzik_pwlz3na6kzw.mp3", "duration": 252.03},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/moukawem_vvkbv9awd0o.mp3", "duration": 205.87},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/mourib_zze5lssrr5o.mp3", "duration": 162.74},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/nassam_alayna_el_hawa_2zw1kdmgins.mp3", "duration": 239.75},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/nemra_nare_official_video_jyzbcnoxqku.mp3", "duration": 249.05},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/sahiya_stranan_newroz_e_newroz_e_official_audio_kom_muzik_yfavewtoebi.mp3", "duration": 252.53},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/orange_blossom_ya_sidi_clip_officiel_marseille_g5qe48c_jyu.mp3", "duration": 275.51},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/sahiya_stranan_welat_ci_qas_xwes_rind_e_official_audio_kom_muzik_cfsmd7oq04a.mp3", "duration": 178.96},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/sahiya_stranan_yaramina_bedew_e_official_audio_2nm5nl6cvy0.mp3", "duration": 178.70},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/sareri_hovin_mernem_yvopp5rereq.mp3", "duration": 266.42},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/ya_ana_ya_ana_fairuz_bticppmf1ya.mp3", "duration": 142.29},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Mozaik/yaveran_mesem_ahura_ritim_toplulugu_2019_sazak_koyu_dv7z6n22wfo.mp3", "duration": 283.30}
+]
+
+TSM = [
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/aksam_oldu_huzunlendim_ben_yine_bulent_ersoy_official_audio_bulentersoy_esen_muzik_kdr7hszqtqg.mp3", "duration": 186.17},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/bahari_bekleyen_kumrular_gibi_bulent_ersoy_official_audio_baharibekleyenkumrulargibi_bulentersoy_hvmlcouil7i.mp3", "duration": 255.97},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/bir_ihtimal_daha_var_qqcravflao0.mp3", "duration": 206.89},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/dok_zulfunu_meydana_gel_munir_nurettin_selcuk_fbq3pap6rx0.mp3", "duration": 132.49},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/erol_buyukburc_inleyen_nagmeler_neredesin_firuze_2004_kalan_muzik_2f_gfjpe_vs.mp3", "duration": 264.54},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/ey_suh_i_sertb_ey_durr_i_nayb_kurdilihicazkar_zbit1m_yizi.mp3", "duration": 140.88},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/gaye_su_akyol_avuclarimda_hala_sicakligin_var_live_feza_musiki_cemiyeti_9xblagtopos.mp3", "duration": 200.67},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/gaye_su_akyol_beyaz_giyme_toz_olur_live_feza_musiki_cemiyeti_coynyrkqsjc.mp3", "duration": 214.94},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/gaye_su_akyol_saymadim_kac_yil_oldu_live_feza_musiki_cemiyeti_8imaqd45ytq.mp3", "duration": 248.01},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/golden_horn_ensemble_evvel_benim_nazli_yarim_karagozun_sarkisi_1996_kalan_muzik_df4fpebzmlc.mp3", "duration": 50.47},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/golden_horn_ensemble_sevdigim_cemalin_cunki_goremem_haremde_nese_1995_kalan_muzik_af7vsr84ln4.mp3", "duration": 136.10},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/hamiyet_yuceses_ada_sahilleri_hjs2ac88org.mp3", "duration": 268.38},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/hersey_seni_hatirlatiyor_y7_xmxrjdd4.mp3", "duration": 345.26},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/huner_coskuner_elveda_meyhaneci_cg0ygu9fkp0.mp3", "duration": 193.15},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/huner_coskuner_gecmesin_gunumuz_0ggyqzmneka.mp3", "duration": 176.64},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/huner_coskuner_sarkilar_seni_soyler_x7tg1pojiio.mp3", "duration": 193.04},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/huner_coskuner_seni_ben_ellerin_olsun_diye_mi_sevdim_sqcjrrahwha.mp3", "duration": 245.00},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/kapildim_gidiyorum_6bl6pa1cwjq.mp3", "duration": 155.32},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/melahat_pars_ben_gamli_hazan_plak_tgapkk4w9so.mp3", "duration": 228.34},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/muzeyyen_senar_dalgalandimda_duruldum_n4je3fvl0ty.mp3", "duration": 281.10},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/muzeyyen_senar_gamzedeyim_deva_bulmam_1975_0ddm0jtfoy8.mp3", "duration": 261.54},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/muzeyyen_senar_omrumuzun_son_demi_hzckloaswlk.mp3", "duration": 206.08},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/muzeyyen_senar_sigaramin_dumani_1975_bxj9dgnj_5e.mp3", "duration": 132.55},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/ne_cikar_bahtimizda_ayrilik_varsa_6wns4p86dvq.mp3", "duration": 171.13},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/nesrin_sipahi_yildizlarin_altinda_official_audio_oh5xh7ipwyc.mp3", "duration": 195.84},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/rusen_yilmaz_benzemez_kimse_sana_fasil_meyhane_sarkilari_dms_muzik_fp31chaocho.mp3", "duration": 212.45},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/samime_sanay_bir_ilkbahar_sabahi_gunesle_uyandinmi_hic_v16cllkd5w4.mp3", "duration": 282.31},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/sevval_sam_soyleyemem_derdimi_i_sek_2006_kalan_muzik_xqs4l3rpgsy.mp3", "duration": 184.71},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/sezen_aksu_istanbul_istanbul_olali_qjywpkobsjo.mp3", "duration": 356.10},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/sezen_aksu_lale_devri_mav2gn_nse4.mp3", "duration": 296.10},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/zeki_muren_ah_bu_sarkilarin_gozu_kor_olsun_ocxfmjngwaa.mp3", "duration": 314.17},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/zeki_muren_elbet_bir_gun_bulusacagiz_te7b_if_bis.mp3", "duration": 308.56},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/zeki_muren_ruyalarda_bulusuruz_1989_5tlmseagrji.mp3", "duration": 365.37},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/zeki_muren_simdi_uzaklardasin_y4bjtepf6tc.mp3", "duration": 201.17},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/TSM/zeki_muren_sorma_ne_haldeyim_gxaa3ag9z8s.mp3", "duration": 252.50}
+]
+
+ANADOLU_ROCK = [
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/21_peron_anlatamiyorum_1977_6ne_kzrx0ti.mp3", "duration": 199.78},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/3_hurel_haram_1972_ste3qxximm0.mp3", "duration": 150.91},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/3_hurel_omur_biter_yol_bitmez_1974_gkweq1nxshu.mp3", "duration": 234.06},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/alman_lisesi_gevheri_1970_8fdom8iswog.mp3", "duration": 165.46},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/ankara_fen_lisesi_drama_koprusu_1968_cahdin7yixo.mp3", "duration": 202.53},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/baris_manco_kara_sevda_wskhevpceyi.mp3", "duration": 263.05},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/cem_karaca_1_mayis_butdthvr0hs.mp3", "duration": 250.12},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/cem_karaca_namus_belasi_q_g_72334bg.mp3", "duration": 264.70},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/cem_karaca_ve_apaslar_karanlik_yollar_1968_ydfimmhwytq.mp3", "duration": 218.88},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/cem_karaca_ve_apaslar_resimdeki_gozyaslari_1968_s_gh_nondam.mp3", "duration": 180.74},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/derdiyoklar_ikilisi_otme_bulbul_1984_wv_jcvct0x8.mp3", "duration": 134.03},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/edip_akbayram_ve_dostlar_mehmet_emmi_1976_emgkjhr1vue.mp3", "duration": 298.32},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/erguder_yoldas_gecti_dost_kervani_remastered_official_audio_y0qsysdedum.mp3", "duration": 231.60},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/erkin_koray_bir_eylul_aksami_1966_wkmplzhakqo.mp3", "duration": 164.05},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/ersen_ve_dadaslar_bir_ayrilik_bir_yoksulluk_bir_olum_1974_al7vt5llvzy.mp3", "duration": 259.24},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/ersen_ve_dadaslar_dostlar_beni_hatirlasin_1975_oc7t_sfqvqq.mp3", "duration": 226.09},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/esin_afsar_zuhtu_1976_cxo_z5ayyqg.mp3", "duration": 217.78},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/feylesoflar_biz_insanlar_1975_kktsjg6fnvk.mp3", "duration": 242.13},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/fikret_kizilok_ay_osman_1967_c55exd3ladg.mp3", "duration": 141.66},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/grup_bunalim_tas_var_kopek_yok_1970_jhrkzrrppy4.mp3", "duration": 240.20},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/halicte_gun_batimi_d2mwgktbzpu.mp3", "duration": 250.28},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/hardal_gece_vakti_1980_unpqqq8rdkw.mp3", "duration": 228.02},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/kardaslar_cokertme_1973_ch_e7pege2w.mp3", "duration": 270.03},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/kardaslar_deniz_ustu_kopurur_1973_uvao00zjcrw.mp3", "duration": 373.13},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/lsd_orkestrasi_neye_geldim_dunyaya_1967_j3imtxw8a00.mp3", "duration": 180.04},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/mogollar_alageyik_destani_1972_qmixacbpelc.mp3", "duration": 184.16},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/ozdemir_erdogan_ac_kapiyi_gir_iceri_1974_zgmt_ymuinw.mp3", "duration": 346.02},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/ozdemir_erdogan_gurbet_1972_w0dtblcb9ko.mp3", "duration": 201.17},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/ANADOLU%20ROCK/ozdemir_erdogan_uzun_ince_bir_yoldayim_1973_l61cplav24w.mp3", "duration": 214.15}
+]
+
+# 4. YAYIN AKIŞI PROGRAMI
+PLAYLISTS = {
+    "ahmet_kaya": AK,
+    "ermeni_ezgileri": ERMENICE,
+    "mozaik": MOZAIK,
+    "tsm": TSM,
+    "tiyatro": RT,
+    "soldan_sesler": SS,
+    "tasavvuf": TASAVVUF,
+    "anadolu_rock": ANADOLU_ROCK,
+    "grup_yorum": GY
+}
+
+# --- CANLI CHAT (ABLY) ---
+# API key'i koda yazma. Şunlardan birine koy:
+# - .streamlit/secrets.toml: ABLY_API_KEY="xxx:yyy"
+# - veya Windows ortam değişkeni: ABLY_API_KEY
+ably_api_key = st.secrets.get("ABLY_API_KEY", None) if hasattr(st, "secrets") else None
+ably_api_key = ably_api_key or os.getenv("ABLY_API_KEY")
+ably_token_request = None
+if ably_api_key and AblyRest:
+    try:
+        ably = AblyRest(ably_api_key)
+        # TokenRequest imzalıdır; tarayıcıya gömülebilir (key'i ifşa etmez)
+        _tr = ably.auth.create_token_request({"client_id": "radyo-web"})
+        # json.dumps için dict'e çevir
+        if hasattr(_tr, "to_dict"):
+            ably_token_request = _tr.to_dict()
+        elif isinstance(_tr, dict):
+            ably_token_request = _tr
+        else:
+            ably_token_request = dict(_tr)
+    except Exception:
+        ably_token_request = None
+
+data_json = json.dumps(
+    {
+        "playlists": PLAYLISTS,
+        "imgs": IMG,
+        "newroz": NEWROZ_MSGS,
+        "ablyTokenRequest": ably_token_request,
+        "ablyEnabled": bool(ably_token_request),
+    }
+)
+
+# 5. FINAL ARAYÜZ (HTML & JS)
+html_code = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body, html {{ height: 100vh; width: 100vw; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }}
+
+        /* Altta hafif kırmızı kıvılcımlar (2 katman, animasyonlu) */
+        body::before {{
+            content: "";
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 14vh;
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0.40;
+            filter: blur(0.8px);
+            background:
+                radial-gradient(circle at 8% 92%, rgba(255, 69, 0, 0.22) 0 1px, rgba(0,0,0,0) 4px),
+                radial-gradient(circle at 17% 80%, rgba(255, 69, 0, 0.28) 0 2px, rgba(0,0,0,0) 5px),
+                radial-gradient(circle at 28% 95%, rgba(255, 69, 0, 0.18) 0 1px, rgba(0,0,0,0) 4px),
+                radial-gradient(circle at 40% 84%, rgba(255, 69, 0, 0.25) 0 2px, rgba(0,0,0,0) 5px),
+                radial-gradient(circle at 53% 93%, rgba(255, 69, 0, 0.16) 0 1px, rgba(0,0,0,0) 4px),
+                radial-gradient(circle at 64% 82%, rgba(255, 69, 0, 0.27) 0 2px, rgba(0,0,0,0) 5px),
+                radial-gradient(circle at 78% 94%, rgba(255, 69, 0, 0.20) 0 1px, rgba(0,0,0,0) 4px),
+                radial-gradient(circle at 90% 83%, rgba(255, 69, 0, 0.26) 0 2px, rgba(0,0,0,0) 5px);
+            animation: sparks-layer-a 5.5s ease-in-out infinite alternate;
+        }}
+
+        body::after {{
+            content: "";
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 12vh;
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0.55;
+            filter: blur(0.4px);
+            background:
+                radial-gradient(circle at 6% 85%, rgba(255, 69, 0, 0.35) 0 2px, rgba(0,0,0,0) 3px),
+                radial-gradient(circle at 14% 90%, rgba(255, 69, 0, 0.28) 0 1px, rgba(0,0,0,0) 3px),
+                radial-gradient(circle at 22% 78%, rgba(255, 69, 0, 0.40) 0 2px, rgba(0,0,0,0) 4px),
+                radial-gradient(circle at 31% 92%, rgba(255, 69, 0, 0.22) 0 1px, rgba(0,0,0,0) 3px),
+                radial-gradient(circle at 43% 80%, rgba(255, 69, 0, 0.32) 0 2px, rgba(0,0,0,0) 4px),
+                radial-gradient(circle at 55% 95%, rgba(255, 69, 0, 0.18) 0 1px, rgba(0,0,0,0) 3px),
+                radial-gradient(circle at 66% 82%, rgba(255, 69, 0, 0.36) 0 2px, rgba(0,0,0,0) 4px),
+                radial-gradient(circle at 77% 90%, rgba(255, 69, 0, 0.24) 0 1px, rgba(0,0,0,0) 3px),
+                radial-gradient(circle at 88% 79%, rgba(255, 69, 0, 0.38) 0 2px, rgba(0,0,0,0) 4px),
+                radial-gradient(circle at 95% 93%, rgba(255, 69, 0, 0.20) 0 1px, rgba(0,0,0,0) 3px);
+            animation: sparks-layer-b 3.6s ease-in-out infinite alternate;
+        }}
+
+        @keyframes sparks-layer-a {{
+            0% {{ transform: translate(0, 0) scale(1); opacity: 0.28; }}
+            50% {{ transform: translate(10px, -6px) scale(1.02); opacity: 0.42; }}
+            100% {{ transform: translate(-8px, -10px) scale(1.01); opacity: 0.34; }}
+        }}
+
+        @keyframes sparks-layer-b {{
+            0% {{ transform: translate(0, 0) scale(1); opacity: 0.45; }}
+            35% {{ transform: translate(-12px, -6px) scale(1.03); opacity: 0.62; }}
+            70% {{ transform: translate(14px, -12px) scale(1.01); opacity: 0.52; }}
+            100% {{ transform: translate(-6px, -16px) scale(1.02); opacity: 0.66; }}
+        }}
+        
+        .top-header {{ height: 18vh; display: flex; flex-direction: column; justify-content: center; align-items: center; border-bottom: 1px solid #111; position: relative; }}
+        .header-title {{ font-size: 5.5vh; letter-spacing: 20px; font-weight: 200; text-transform: uppercase; }}
+        
+        /* NEWROZ YAZISI - BİR ALTTA VE YAVAŞ */
+        #newroz-sub {{ font-size: 1.8vh; color: #ff0000; letter-spacing: 8px; margin-top: 25px; font-weight: bold; animation: slow-flash 4s infinite; }}
+        
+        /* SABİT DİNLEYİCİ SAYISI - SAĞ ÜST */
+        .live-stats {{ position: absolute; right: 40px; top: 40%; display: flex; align-items: center; gap: 10px; }}
+        .live-circle {{ width: 8px; height: 8px; background: #00ff00; border-radius: 50%; }}
+        .viewer-text {{ color: rgba(0, 255, 0, 0.4); font-size: 1.2vh; font-weight: bold; letter-spacing: 2px; }}
+
+        .main-grid {{ display: flex; height: 82vh; width: 100%; position: relative; z-index: 1; }}
+        .panel {{ padding: 2vh; display: flex; flex-direction: column; background: #000; height: 100%; }}
+        .col-flow {{ flex: 20; border-right: 1px solid #111; overflow: hidden; display: flex; flex-direction: column; }}
+        .col-player {{ flex: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
+        .col-chat {{ flex: 20; border-left: 1px solid #111; background: #050505; }}
+
+        /* Chat UI (scoped to chat column) */
+        .col-chat {{ display: flex; flex-direction: column; }}
+        .col-chat .chat-wrap {{ display: flex; flex-direction: column; flex: 1; min-height: 0; margin-top: 1.2vh; gap: 1vh; }}
+        .col-chat .chat-log {{
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            padding: 1.2vh;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.55);
+        }}
+        .col-chat .chat-log::-webkit-scrollbar {{ width: 8px; }}
+        .col-chat .chat-log::-webkit-scrollbar-track {{ background: rgba(255,255,255,0.03); border-radius: 999px; }}
+        .col-chat .chat-log::-webkit-scrollbar-thumb {{ background: rgba(255,69,0,0.28); border-radius: 999px; }}
+
+        .col-chat .chat-msg {{
+            font-size: clamp(12px, 1.15vh, 14px);
+            color: rgba(255,255,255,0.88);
+            line-height: 1.35;
+            margin-bottom: 0.9vh;
+            word-break: break-word;
+            padding: 0.9vh 1vh;
+            border-radius: 12px;
+            background: rgba(0,0,0,0.30);
+            border: 1px solid rgba(255,255,255,0.06);
+        }}
+        .col-chat .chat-msg:last-child {{ margin-bottom: 0; }}
+        .col-chat .chat-meta {{
+            font-size: clamp(10px, 0.95vh, 12px);
+            color: rgba(255,255,255,0.50);
+            letter-spacing: 0.4px;
+            margin-bottom: 0.35vh;
+        }}
+        .col-chat .chat-input {{ display: flex; gap: 0.8vh; }}
+        .col-chat #chatName, .col-chat #chatText {{
+            flex: 1;
+            background: rgba(0,0,0,0.40);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 1vh 1.1vh;
+            font-size: clamp(12px, 1.1vh, 14px);
+            outline: none;
+        }}
+        .col-chat #chatName {{ flex: 0.65; }}
+        .col-chat #chatName:focus, .col-chat #chatText:focus {{
+            border-color: rgba(255,69,0,0.55);
+            box-shadow: 0 0 0 3px rgba(255,69,0,0.12);
+        }}
+        .col-chat #chatSend {{
+            background: rgba(255,69,0,0.14);
+            color: #fff;
+            border: 1px solid rgba(255,69,0,0.40);
+            border-radius: 12px;
+            padding: 1vh 1.4vh;
+            font-size: clamp(12px, 1.05vh, 14px);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+        }}
+        .col-chat #chatSend:hover {{ background: rgba(255,69,0,0.22); border-color: rgba(255,69,0,0.55); }}
+        .col-chat #chatSend:active {{ transform: translateY(1px); }}
+        .col-chat #chatSend:disabled {{ opacity: 0.55; cursor: not-allowed; }}
+        .col-chat #chatStatus {{ margin-top: 0.2vh; font-size: clamp(10px, 1.0vh, 12px); color: rgba(255,255,255,0.50); }}
+        
+        /* Yayın akışı: kaydırmasız, 1 ekrana sığsın */
+        .row-item {{ flex: 1 1 0; min-height: 0; padding: 0.95vh 1vh; border-bottom: 1px solid rgba(255,255,255,0.06); opacity: 0.38; }}
+        .row-item > div:first-child {{ color: rgba(255,255,255,0.72); letter-spacing: 0.5px; }}
+        .row-item > div:nth-child(2) {{ color: rgba(255, 110, 60, 0.92) !important; }}
+        .active {{ opacity: 1; border-left: 5px solid #ff4500; background: rgba(255, 69, 0, 0.09); box-shadow: inset 0 0 0 1px rgba(255, 69, 0, 0.12), 0 0 18px rgba(255, 69, 0, 0.08); }}
+        .row-desc {{ font-size: 1.05vh; color: rgba(255,255,255,0.70); margin-top: 0.25vh; }}
+        
+        .disk-wrapper {{ width: 40vh; height: 40vh; border-radius: 50%; border: 15px solid #111; overflow: hidden; background: #000; animation: rotate-disk 40s linear infinite; }}
+        @keyframes rotate-disk {{ from {{ transform: rotate(0deg); }} to {{ transform: rotate(360deg); }} }}
+        .disk-img {{ width: 100%; height: 100%; object-fit: contain; }}
+        
+        #display-song-name {{ font-size: 2vh; font-weight: 300; letter-spacing: 4px; margin-top: 5vh; text-align: center; text-transform: uppercase; }}
+        #display-category-name {{ color:#ff4500; font-size:1.2vh; letter-spacing:7px; margin-top:1.5vh; font-weight: bold; }}
+        
+        @keyframes slow-flash {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.2; }} }}
+        
+        #control-button {{ margin-top: 4vh; padding: 1.5vh 8vh; font-size: 1vh; font-weight: bold; background: transparent; color: #fff; border: 1px solid #333; border-radius: 50px; cursor: pointer; }}
+
+    </style>
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+</head>
+<body>
+<div class="top-header">
+    <div class="header-title">HALKLARIN SESİ RADYOSU</div>
+    <div id="newroz-sub">NEWROZ PÎROZ BE!</div>
+    <div class="live-stats">
+        <div class="live-circle"></div>
+        <div class="viewer-text">CANLI: <span id="viewers">12</span> DİNLEYİCİ</div>
+    </div>
+</div>
+<div class="main-grid">
+    <div class="panel col-flow">
+        <div class="row-item" data-start="0" data-end="3">
+            <div>00:00 — 03:00</div>
+            <div style="font-weight:bold; color:#ff4500;">AHMET KAYA ŞARKILARI</div>
+            <div class="row-desc">Sürgünün, özlemin ve isyanın sesi Ahmet Kaya'nın sevilen şarkıları.</div>
+        </div>
+        <div class="row-item" data-start="3" data-end="6">
+            <div>03:00 — 06:00</div>
+            <div style="font-weight:bold; color:#ff4500;"> ERMENİ HALK EZGİLERİ</div>
+            <div class="row-desc">Ermenice şarkı seçkileri.</div>
+        </div>
+        <div class="row-item" data-start="6" data-end="11">
+            <div>06:00 — 11:00</div>
+            <div style="font-weight:bold; color:#ff4500;">MOZAİK</div>
+            <div class="row-desc">Farklı dillerden, kültürlerden özgürlük ezgileri.</div>
+        </div>
+        <div class="row-item" data-start="11" data-end="14">
+            <div>11:00 — 14:00</div>
+            <div style="font-weight:bold; color:#ff4500;">TSM SAATİ</div>
+            <div class="row-desc">Klasik Türk sanat müziğiyle nostaljik bir yolculuk.</div>
+        </div>
+        <div class="row-item" data-start="14" data-end="17">
+            <div>14:00 — 17:00</div>
+            <div style="font-weight:bold; color:#ff4500;">RADYO TİYATROSU</div>
+            <div class="row-desc">Toplumsal gerçekçi oyunlar ve sesli hikâyeler.</div>
+        </div>
+        <div class="row-item" data-start="17" data-end="20">
+            <div>17:00 — 20:00</div>
+            <div style="font-weight:bold; color:#ff4500;">SOLDAN SESLER</div>
+            <div class="row-desc">Politik ve alternatif şarkı seçkileri.</div>
+        </div>
+        <div class="row-item" data-start="20" data-end="21">
+            <div>20:00 — 21:00</div>
+            <div style="font-weight:bold; color:#ff4500;">TASAVVUF VAKTİ</div>
+            <div class="row-desc">Tasavvuf musikisi ve mistik ezgiler.</div>
+        </div>
+        <div class="row-item" data-start="21" data-end="22">
+            <div>21:00 — 22:00</div>
+            <div style="font-weight:bold; color:#ff4500;">ANADOLU ROCK</div>
+            <div class="row-desc">Anadolu rock’ın efsaneleşmiş şarkıları.</div>
+        </div>
+        <div class="row-item" data-start="22" data-end="24">
+            <div>22:00 — 00:00</div>
+            <div style="font-weight:bold; color:#ff4500;">GRUP YORUM SAATİ</div>
+            <div class="row-desc">Direnişin sesi Grup Yorum’dan seçilmiş eserler.</div>
+        </div>
+    </div>
+    <div class="panel col-player">
+        <div class="disk-wrapper"><img id="main-disk-img" class="disk-img" src=""></div>
+        <div id="display-song-name">BAĞLANILIYOR...</div>
+        <div id="display-category-name">MASTER YAYIN</div>
+        <button id="control-button">YAYINI BAŞLAT</button>
+    </div>
+    <div class="panel col-chat">
+        <div style="text-align:center; color:#ff4500; font-size:1.1vh; font-weight:bold; letter-spacing:4px;">CANLI SOHBET</div>
+        <div class="chat-wrap">
+            <div id="chatLog" class="chat-log"></div>
+            <div class="chat-input">
+                <input id="chatName" placeholder="İsim" maxlength="24" />
+                <input id="chatText" placeholder="Mesaj yaz..." maxlength="240" />
+                <button id="chatSend">GÖNDER</button>
+            </div>
+            <div id="chatStatus"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const radioData = {data_json};
+
+    // --- ABLY CHAT ---
+    (function initChat() {{
+        const logEl = document.getElementById('chatLog');
+        const nameEl = document.getElementById('chatName');
+        const textEl = document.getElementById('chatText');
+        const sendEl = document.getElementById('chatSend');
+        const statusEl = document.getElementById('chatStatus');
+
+        const pushMsg = (name, text) => {{
+            if (!logEl) return;
+            const wrap = document.createElement('div');
+            wrap.className = 'chat-msg';
+            const meta = document.createElement('div');
+            meta.className = 'chat-meta';
+            meta.textContent = (name || 'Anonim') + ' • ' + new Date().toLocaleTimeString();
+            const body = document.createElement('div');
+            body.textContent = text || '';
+            wrap.appendChild(meta);
+            wrap.appendChild(body);
+            logEl.appendChild(wrap);
+            while (logEl.children.length > 40) logEl.removeChild(logEl.firstChild);
+            logEl.scrollTop = logEl.scrollHeight;
+        }};
+
+        if (!radioData.ablyEnabled) {{
+            if (statusEl) statusEl.textContent = "Chat kapalı (ABLY_API_KEY eksik).";
+            if (sendEl) sendEl.disabled = true;
+            return;
+        }}
+
+        if (typeof Ably === 'undefined') {{
+            if (statusEl) statusEl.textContent = "Chat yüklenemedi (Ably script).";
+            if (sendEl) sendEl.disabled = true;
+            return;
+        }}
+
+        const realtime = new Ably.Realtime({{
+            authCallback: (params, cb) => cb(null, radioData.ablyTokenRequest)
+        }});
+        const channel = realtime.channels.get('radyo-chat');
+
+        realtime.connection.on((state) => {{
+            if (statusEl) statusEl.textContent = "Chat: " + state.current;
+        }});
+
+        channel.subscribe('msg', (m) => {{
+            const data = m.data || {{}};
+            pushMsg(data.name, data.text);
+        }});
+
+        const send = () => {{
+            const name = (nameEl && nameEl.value ? nameEl.value.trim() : '') || 'Anonim';
+            const text = (textEl && textEl.value ? textEl.value.trim() : '');
+            if (!text) return;
+            channel.publish('msg', {{ name, text }});
+            if (textEl) textEl.value = '';
+        }};
+
+        if (sendEl) sendEl.onclick = send;
+        if (textEl) textEl.addEventListener('keydown', (e) => {{ if (e.key === 'Enter') send(); }});
+
+        pushMsg('Sistem', 'Canlı sohbete hoş geldin.');
+    }})();
+
+    // Genel şarkı başlığı biçimlendirici
+    function formatTitleFromUrl(url) {{
+        const filename = (url.split('/').pop() || '').replace(/\.mp3$/i, '');
+        let base = filename;
+        try {{
+            base = decodeURIComponent(base);
+        }} catch (_) {{
+            // ignore
+        }}
+
+        // Ayırıcıları normalize et
+        base = base
+            .replace(/\+/g, ' ')
+            .replace(/[_]+/g, ' ')
+            .replace(/[.]+/g, ' ')
+            .replace(/\s*-\s*/g, ' - ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        // YouTube/metadata çöplerini temizle
+        const junk = new Set([
+            'official', 'video', 'audio', 'clip', 'lyrics', 'lyric', 'hd', 'hq', 'remastered',
+            'full', 'version', 'live', 'concert', 'album', 'track', 'music', 'müzik', 'muzik',
+            'original', 'ost', 'karaoke'
+        ]);
+
+        let partsBase = base.split(' ').filter(Boolean);
+        partsBase = partsBase.filter(p => !junk.has(p.toLowerCase()));
+
+        // Sonda rastgele ID gibi duran tokenları at (örn: sbykofwdr2a / 31mcbyjebfc)
+        while (partsBase.length > 2) {{
+            const last = partsBase[partsBase.length - 1];
+            const looksLikeId =
+                /^[a-z0-9]{{8,}}$/i.test(last) ||
+                (/^[a-z]{{6,}}$/i.test(last) && !/[aeıioöuü]/i.test(last)) ||
+                /[0-9]/.test(last);
+            if (!looksLikeId) break;
+            partsBase.pop();
+        }}
+        base = partsBase.join(' ');
+
+        const lower = base.toLowerCase();
+        let artist = '';
+        let namePart = base;
+
+        if (lower.startsWith('grup yorum ')) {{
+            artist = 'GRUP YORUM';
+            namePart = base.slice('grup yorum '.length);
+        }} else if (lower.startsWith('ahmet kaya ')) {{
+            artist = 'AHMET KAYA';
+            namePart = base.slice('ahmet kaya '.length);
+        }} else if (lower.startsWith('yeni turku ')) {{
+            artist = 'YENİ TÜRKÜ';
+            namePart = base.slice('yeni turku '.length);
+        }} else if (lower.startsWith('grup ekin ')) {{
+            artist = 'GRUP EKİN';
+            namePart = base.slice('grup ekin '.length);
+        }} else if (lower.startsWith('grup munzur ')) {{
+            artist = 'GRUP MUNZUR';
+            namePart = base.slice('grup munzur '.length);
+        }}
+
+        const titleCaseTr = (s) => {{
+            return s
+                .split(' ')
+                .filter(Boolean)
+                .map(w => {{
+                    // küçük bağlaçlar
+                    const lw = w.toLowerCase();
+                    if (['ve', 'ile', 'ya', 'da', 'de', 'bir', 'i', 'ii', 'iii'].includes(lw)) return lw;
+                    return w.charAt(0).toLocaleUpperCase('tr-TR') + w.slice(1).toLocaleLowerCase('tr-TR');
+                }})
+                .join(' ');
+        }};
+
+        const words = namePart.split(' ').filter(Boolean).map(w => {{
+            return titleCaseTr(w);
+        }});
+        let titleCore = words.join(' ');
+
+        // Bazı özel şarkı/ad düzeltmeleri (Türkçe karakterler vb.)
+        titleCore = titleCore
+            .replace('Cav Bella', 'Çav Bella')
+            .replace('Haziranda Olmek Zor', 'Haziranda Ölmek Zor')
+            .replace('Hakliyiz Kazanacagiz', 'Haklıyız Kazanacağız');
+
+        if (artist) {{
+            return artist + ' - ' + titleCore;
+        }}
+        return titleCore || base.toLocaleUpperCase('tr-TR');
+    }}
+    let isMuted = true;
+    let newrozIdx = 0;
+    const audio = window.audioObj || new Audio();
+    window.audioObj = audio;
+    let activeKey = null;
+    const shuffledPlaylists = window.shuffledPlaylists || {{}};
+    window.shuffledPlaylists = shuffledPlaylists;
+    audio.preload = "auto";
+    audio.muted = true;
+    audio.crossOrigin = "anonymous";
+
+    function setStatus(text) {{
+        const el = document.getElementById('display-song-name');
+        if (el) el.innerText = text;
+    }}
+
+    function safePlay() {{
+        try {{
+            const p = audio.play();
+            if (p && typeof p.catch === "function") {{
+                p.catch((err) => {{
+                    const msg = (err && err.name) ? (err.name + ": " + (err.message || "")) : String(err);
+                    setStatus("SES AÇILAMADI (tarayıcı engeli): " + msg);
+                }});
+            }}
+        }} catch (err) {{
+            const msg = (err && err.name) ? (err.name + ": " + (err.message || "")) : String(err);
+            setStatus("SES HATASI: " + msg);
+        }}
+    }}
+
+    function setSrcAndSeek(url, seekTime, shouldPlay) {{
+        audio.src = url;
+        const applySeek = () => {{
+            try {{ audio.currentTime = seekTime; }} catch (_) {{ }}
+            if (shouldPlay) safePlay();
+        }};
+
+        // Bazı tarayıcılarda metadata gelmeden seek hata verir; bu yüzden bekliyoruz.
+        if (audio.readyState >= 1) {{
+            applySeek();
+        }} else {{
+            const onMeta = () => {{
+                audio.removeEventListener('loadedmetadata', onMeta);
+                applySeek();
+            }};
+            audio.addEventListener('loadedmetadata', onMeta);
+        }}
+    }}
+
+
+    function sync() {{
+        const h = new Date().getHours();
+        let key = "grup_yorum"; let name = "YAYINDA"; let img = radioData.imgs.mozaik;
+
+        if(h >= 0 && h < 3) {{ key="ahmet_kaya"; name="AHMET KAYA"; img=radioData.imgs.ahmet_kaya; }}
+        else if(h >= 3 && h < 6) {{ key="ermeni_ezgileri"; name=" ERMENİ HALK EZGİLERİ"; img=radioData.imgs.ermeni_ezgileri; }}
+        else if(h >= 6 && h < 11) {{ key="mozaik"; name="MOZAİK"; img=radioData.imgs.mozaik; }}
+        else if(h >= 11 && h < 14) {{ key="tsm"; name="TÜRK SANAT MÜZİĞİ"; img=radioData.imgs.tsm; }}
+        else if(h >= 14 && h < 17) {{ key="tiyatro"; name="RADYO TİYATROSU"; img=radioData.imgs.tiyatro; }}
+        else if(h >= 17 && h < 20) {{ key="soldan_sesler"; name="SOLDAN SESLER"; img=radioData.imgs.soldan_sesler; }}
+        else if(h >= 20 && h < 21) {{ key="tasavvuf"; name="TASAVVUF VAKTİ"; img=radioData.imgs.tasavvuf; }}
+        else if(h >= 21 && h < 22) {{ key="anadolu_rock"; name="ANADOLU ROCK"; img=radioData.imgs.anadolu_rock; }}
+        else if(h >= 22 && h < 24) {{ key="grup_yorum"; name="GRUP YORUM SAATİ"; }}
+
+        const basePlaylist = radioData.playlists[key] || [];
+
+        // Her playlist için sayfa yüklenince bir kez karıştırılmış kopya kullan
+        let playlist = shuffledPlaylists[key];
+        if (!playlist || playlist.length !== basePlaylist.length) {{
+            playlist = basePlaylist.slice().sort(() => Math.random() - 0.5);
+            shuffledPlaylists[key] = playlist;
+        }}
+
+        const totalDuration = playlist.reduce((a, b) => a + b.duration, 0);
+        const currentTimeInSeconds = Math.floor(Date.now() / 1000) % totalDuration;
+
+        let elapsed = 0;
+        let currentTrack = playlist[0];
+        let seekTime = 0;
+
+        for (let track of playlist) {{
+            if (currentTimeInSeconds >= elapsed && currentTimeInSeconds < elapsed + track.duration) {{
+                currentTrack = track;
+                seekTime = currentTimeInSeconds - elapsed;
+                break;
+            }}
+            elapsed += track.duration;
+        }}
+
+        document.getElementById('display-category-name').innerText = name;
+
+        // Görsel: cache'e takılmasın + yüklenemezse fallback
+        const diskImgEl = document.getElementById('main-disk-img');
+        if (diskImgEl) {{
+            diskImgEl.onerror = () => {{
+                diskImgEl.onerror = null;
+                diskImgEl.src = radioData.imgs.mozaik;
+            }};
+
+            // Aynı URL görünse bile bazen cache yüzünden güncellenmiyor → küçük cache-bust
+            const bust = `t=${{Math.floor(Date.now() / 10000)}}`;
+            const nextSrc = img ? (img + (img.includes('?') ? '&' : '?') + bust) : radioData.imgs.mozaik;
+            if (diskImgEl.src !== nextSrc) diskImgEl.src = nextSrc;
+        }}
+        
+        let title = formatTitleFromUrl(currentTrack.url);
+
+        document.getElementById('display-song-name').innerText = title;
+
+        const keyChanged = (activeKey !== key);
+        if (keyChanged) activeKey = key;
+
+        // Playlist değiştiğinde (aynı URL denk gelse bile) mutlaka yeniden senkronla
+        if (keyChanged || audio.src !== currentTrack.url) {{
+            setSrcAndSeek(currentTrack.url, seekTime, !isMuted);
+        }}
+
+        if (Math.abs(audio.currentTime - seekTime) > 3) {{
+            audio.currentTime = seekTime;
+        }}
+
+        document.querySelectorAll('.row-item').forEach(i => {{
+            i.classList.toggle('active', h >= parseInt(i.dataset.start) && h < parseInt(i.dataset.end));
+        }});
+
+        // Dinleyici sayısını 1-7 arası sabit tut (Yanıp sönme yok)
+        document.getElementById('viewers').innerText = 1 + (Math.floor(Date.now() / 10000) % 7);
+    }}
+
+    // Newroz Yazısı Geçişi (5 Saniyede Bir)
+    setInterval(() => {{
+        newrozIdx = (newrozIdx + 1) % radioData.newroz.length;
+        document.getElementById('newroz-sub').innerText = radioData.newroz[newrozIdx];
+    }}, 5000);
+
+    document.getElementById('control-button').onclick = () => {{
+        isMuted = !isMuted;
+        document.getElementById('control-button').innerText = isMuted ? "YAYINI BAŞLAT" : "SESİ KAPAT";
+        audio.muted = isMuted;
+        audio.volume = 1.0;
+        sync();
+        if (!isMuted) safePlay();
+    }};
+
+    setInterval(sync, 1000);
+    sync();
+</script>
+</body>
+</html>
+"""
+
+st.markdown(
+    """
+<style>
+iframe { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: none; }
+#MainMenu, footer, header {visibility: hidden;}
+</style>
+<script>
+// Streamlit iframe'ına autoplay izni ver (bazı tarayıcılarda ses için şart)
+(function() {
+  const tryFix = () => {
+    const frames = document.querySelectorAll('iframe');
+    frames.forEach(f => {
+      const allow = f.getAttribute('allow') || '';
+      if (!allow.includes('autoplay')) {
+        f.setAttribute('allow', (allow ? allow + '; ' : '') + 'autoplay');
+      }
+    });
+  };
+  tryFix();
+  setInterval(tryFix, 1000);
+})();
+</script>
+""",
+    unsafe_allow_html=True,
+)
+components.html(html_code, height=2000)
