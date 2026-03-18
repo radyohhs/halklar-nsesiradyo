@@ -603,16 +603,11 @@ html_code = f"""
             min-height: 0; /* içerik taşınca binmeyi engeller */
         }}
         html.mobile-layout .col-flow, body.mobile-layout .col-flow {{
-            flex: 0 0 8dvh; /* mobilde akışı daha da mini yap */
-            max-height: 8dvh;
-            border-right: none;
-            border-bottom: 1px solid #111;
-            overflow: hidden; /* mobilde akış için scroll istemiyorsun */
-            flex-direction: row; /* tek satıra sığdır */
+            display: none; /* mobilde yayın akışı kalksın */
         }}
         html.mobile-layout .col-player, body.mobile-layout .col-player {{
-            flex: 0 0 22dvh;
-            max-height: 22dvh;
+            flex: 0 0 18dvh;
+            max-height: 18dvh;
         }}
         html.mobile-layout .col-chat, body.mobile-layout .col-chat {{
             flex: 1 1 auto; /* kalan yükseklik */
@@ -634,14 +629,12 @@ html_code = f"""
             letter-spacing: 3px;
         }}
         html.mobile-layout #display-category-name, body.mobile-layout #display-category-name {{
-            font-size: clamp(12px, 2.2vh, 16px);
-            margin-top: 1dvh;
-            letter-spacing: 4px;
+            display: none; /* sadece şarkı ismi kalsın */
         }}
         html.mobile-layout #control-button, body.mobile-layout #control-button {{
-            margin-top: 0.8dvh;
-            padding: 14px 26px;
-            font-size: 14px;
+            margin-top: 0.5dvh;
+            padding: 12px 22px;
+            font-size: 13px;
             border-radius: 999px;
         }}
         html.mobile-layout .row-item, body.mobile-layout .row-item {{
@@ -707,6 +700,26 @@ html_code = f"""
         }}
         html.tiny-layout #chatSend, body.tiny-layout #chatSend {{
             width: 100%;
+        }}
+
+        /* Mobilde sohbeti büyüt (okunur olsun) */
+        html.mobile-layout .col-chat .chat-log {{
+            padding: 1.4dvh;
+            border-radius: 16px;
+        }}
+        html.mobile-layout .col-chat .chat-msg {{
+            font-size: clamp(13px, 1.5vh, 16px);
+            padding: 1.0dvh 1.1vh;
+            line-height: 1.35;
+        }}
+        html.mobile-layout .col-chat #chatName, body.mobile-layout .col-chat #chatName,
+        html.mobile-layout .col-chat #chatText, body.mobile-layout .col-chat #chatText {{
+            font-size: clamp(13px, 1.4vh, 16px);
+            padding: 1.1dvh 1.15vh;
+        }}
+        html.mobile-layout .col-chat #chatSend {{
+            font-size: clamp(13px, 1.3vh, 16px);
+            padding: 1.1dvh 1.25vh;
         }}
 
     </style>
