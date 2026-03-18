@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import streamlit.components.v1 as components
 import os
+import asyncio
 
 try:
     from ably import AblyRest
@@ -339,8 +340,12 @@ elif not AblyRest:
 else:
     try:
         ably = AblyRest(ably_api_key)
-        # TokenRequest imzalıdır; tarayıcıya gömülebilir (key'i ifşa etmez)
+        # TokenRequest bazı ably sürümlerinde coroutine dönebiliyor, onu da yakala
         _tr = ably.auth.create_token_request({"client_id": "radyo-web"})
+
+        if asyncio.iscoroutine(_tr):
+            _tr = asyncio.run(_tr)
+
         # json.dumps için dict'e çevir
         if hasattr(_tr, "to_dict"):
             ably_token_request = _tr.to_dict()
