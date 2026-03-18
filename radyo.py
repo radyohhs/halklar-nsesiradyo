@@ -563,7 +563,8 @@ html_code = f"""
         #control-button {{ margin-top: 4vh; padding: 1.5vh 8vh; font-size: 1vh; font-weight: bold; background: transparent; color: #fff; border: 1px solid #333; border-radius: 50px; cursor: pointer; }}
 
         /* ---------------- Responsive (Mobil) ---------------- */
-        @media (max-width: 768px) {{
+        /* Mobil/Tablet (dikey) için: genişlikten bağımsız daha güvenli tetik */
+        @media (orientation: portrait) and (max-width: 1200px) {{
             .top-header {{ height: 20dvh; }}
             .header-title {{ font-size: clamp(24px, 6.5vw, 40px); letter-spacing: 10px; }}
 
