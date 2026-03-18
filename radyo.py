@@ -607,8 +607,8 @@ html_code = f"""
             max-height: 8dvh;
             border-right: none;
             border-bottom: 1px solid #111;
-            overflow-y: auto;
-            overflow-x: hidden;
+            overflow: hidden; /* mobilde akış için scroll istemiyorsun */
+            flex-direction: row; /* tek satıra sığdır */
         }}
         html.mobile-layout .col-player, body.mobile-layout .col-player {{
             flex: 0 0 22dvh;
@@ -626,6 +626,7 @@ html_code = f"""
             width: clamp(100px, 32vw, 160px);
             height: clamp(100px, 32vw, 160px);
             border: 6px solid #111;
+            display: none; /* mobilde görseli görünmez yap */
         }}
         html.mobile-layout #display-song-name, body.mobile-layout #display-song-name {{
             font-size: clamp(15px, 3.0vh, 20px);
@@ -653,6 +654,34 @@ html_code = f"""
         }}
         html.mobile-layout .row-desc, body.mobile-layout .row-desc {{
             font-size: clamp(12px, 1.9vh, 14px);
+        }}
+        /* Akış tek satır: her kart eşit genişlik alsın, alt çizgi kalksın */
+        html.mobile-layout .col-flow .row-item, body.mobile-layout .col-flow .row-item {{
+            flex: 1 1 0;
+            border-bottom: none;
+            padding: 0 0.6vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        /* Akışta sadece başlık kalsın (scroll yok, tek satır) */
+        html.mobile-layout .col-flow .row-item > div:first-child {{
+            display: none; /* zaman yazısını gizle */
+        }}
+        html.mobile-layout .col-flow .row-item > div:nth-child(2) {{
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: clamp(10px, 1.6vh, 13px);
+            line-height: 1.1;
+            letter-spacing: 0.2px;
+            max-width: 100%;
+        }}
+        /* Aktif durum çizgisini yataya uyarlayalım */
+        html.mobile-layout .row-item.active {{
+            border-left: none;
+            border-bottom: 3px solid #ff4500;
+            background: rgba(255, 69, 0, 0.09);
         }}
         html.mobile-layout .col-flow .row-desc, body.mobile-layout .col-flow .row-desc {{
             display: none; /* mobilde akış kartları arası boşluk çok genişliyor, açıklamayı kaldırıyoruz */
