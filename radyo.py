@@ -391,9 +391,11 @@ html_code = f"""
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body, html {{ height: 100vh; width: 100vw; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }}
+        body, html {{ height: 100dvh; width: 100%; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }}
 
         /* Altta hafif kırmızı kıvılcımlar (2 katman, animasyonlu) */
         body::before {{
@@ -402,7 +404,7 @@ html_code = f"""
             left: 0;
             right: 0;
             bottom: 0;
-            height: 14vh;
+            height: 14dvh;
             pointer-events: none;
             z-index: 2;
             opacity: 0.40;
@@ -425,7 +427,7 @@ html_code = f"""
             left: 0;
             right: 0;
             bottom: 0;
-            height: 12vh;
+            height: 12dvh;
             pointer-events: none;
             z-index: 2;
             opacity: 0.55;
@@ -457,7 +459,7 @@ html_code = f"""
             100% {{ transform: translate(-6px, -16px) scale(1.02); opacity: 0.66; }}
         }}
         
-        .top-header {{ height: 18vh; display: flex; flex-direction: column; justify-content: center; align-items: center; border-bottom: 1px solid #111; position: relative; }}
+        .top-header {{ height: 18dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; border-bottom: 1px solid #111; position: relative; }}
         .header-title {{ font-size: 5.5vh; letter-spacing: 20px; font-weight: 200; text-transform: uppercase; }}
         
         /* NEWROZ YAZISI - BİR ALTTA VE YAVAŞ */
@@ -468,7 +470,7 @@ html_code = f"""
         .live-circle {{ width: 8px; height: 8px; background: #00ff00; border-radius: 50%; }}
         .viewer-text {{ color: rgba(0, 255, 0, 0.4); font-size: 1.2vh; font-weight: bold; letter-spacing: 2px; }}
 
-        .main-grid {{ display: flex; height: 82vh; width: 100%; position: relative; z-index: 1; }}
+        .main-grid {{ display: flex; height: 82dvh; width: 100%; position: relative; z-index: 1; }}
         .panel {{ padding: 2vh; display: flex; flex-direction: column; background: #000; height: 100%; }}
         .col-flow {{ flex: 20; border-right: 1px solid #111; overflow: hidden; display: flex; flex-direction: column; }}
         .col-player {{ flex: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
@@ -559,6 +561,77 @@ html_code = f"""
         @keyframes slow-flash {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.2; }} }}
         
         #control-button {{ margin-top: 4vh; padding: 1.5vh 8vh; font-size: 1vh; font-weight: bold; background: transparent; color: #fff; border: 1px solid #333; border-radius: 50px; cursor: pointer; }}
+
+        /* ---------------- Responsive (Mobil) ---------------- */
+        @media (max-width: 768px) {{
+            .top-header {{ height: 20dvh; }}
+            .header-title {{ font-size: clamp(24px, 6.5vw, 40px); letter-spacing: 10px; }}
+
+            /* Absolute konumlar mobilde üst üste binebiliyor */
+            .live-stats {{ position: static; margin-top: 10px; }}
+            #newroz-sub {{ font-size: clamp(12px, 2.1vh, 18px); letter-spacing: 5px; margin-top: 12px; }}
+            .viewer-text {{ font-size: 1.0vh; letter-spacing: 1.5px; }}
+
+            .main-grid {{
+                flex-direction: column;
+                height: calc(100dvh - 20dvh);
+            }}
+            .panel {{ padding: 1.2dvh; height: auto; }}
+
+            .col-flow {{
+                flex: 0 0 auto;
+                border-right: none;
+                border-bottom: 1px solid #111;
+                overflow-y: auto;
+                overflow-x: hidden;
+                max-height: 22dvh;
+            }}
+            .col-player {{ flex: 0 0 auto; }}
+            .col-chat {{
+                flex: 1 1 auto;
+                border-left: none;
+                border-top: 1px solid #111;
+                max-height: 58dvh;
+            }}
+
+            .disk-wrapper {{
+                width: clamp(160px, 42vw, 260px);
+                height: clamp(160px, 42vw, 260px);
+                border: 10px solid #111;
+            }}
+            #display-song-name {{
+                font-size: clamp(16px, 3.2vh, 22px);
+                margin-top: 2dvh;
+                letter-spacing: 3px;
+            }}
+            #display-category-name {{
+                font-size: clamp(12px, 2.2vh, 16px);
+                margin-top: 1dvh;
+                letter-spacing: 4px;
+            }}
+            #control-button {{
+                margin-top: 2dvh;
+                padding: 14px 26px;
+                font-size: 14px;
+                border-radius: 999px;
+            }}
+            .row-item {{ padding: 0.8dvh 0.9vh; }}
+            .row-desc {{ font-size: clamp(12px, 1.9vh, 14px); }}
+
+            .col-chat .chat-wrap {{
+                margin-top: 0.8dvh;
+                gap: 0.7dvh;
+            }}
+            .col-chat .chat-input {{ gap: 0.6dvh; }}
+            .col-chat #chatName {{ flex: 0.45; }}
+        }}
+
+        @media (max-width: 420px) {{
+            .col-chat .chat-input {{ flex-direction: column; }}
+            .col-chat #chatName {{ flex: 0 0 auto; width: 100%; }}
+            .col-chat #chatText {{ width: 100%; }}
+            .col-chat #chatSend {{ width: 100%; }}
+        }}
 
     </style>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
