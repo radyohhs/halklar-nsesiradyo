@@ -822,8 +822,6 @@ html_code = f"""
     const audio = window.audioObj || new Audio();
     window.audioObj = audio;
     let activeKey = null;
-    const shuffledPlaylists = window.shuffledPlaylists || {{}};
-    window.shuffledPlaylists = shuffledPlaylists;
     audio.preload = "auto";
     audio.muted = true;
     audio.crossOrigin = "anonymous";
@@ -831,6 +829,38 @@ html_code = f"""
     function setStatus(text) {{
         const el = document.getElementById('display-song-name');
         if (el) el.innerText = text;
+    }}
+
+    // Her kullanıcıda aynı sırayı üretmek için: gün bazlı deterministik shuffle
+    function hashStringToInt(str) {{
+        // FNV-1a 32-bit hash
+        let h = 2166136261;
+        for (let i = 0; i < str.length; i++) {{
+            h ^= str.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }}
+        return h >>> 0;
+    }}
+
+    function mulberry32(a) {{
+        return function() {{
+            let t = a += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        }};
+    }}
+
+    function deterministicShuffle(arr, seedStr) {{
+        const a = arr.slice();
+        const rng = mulberry32(hashStringToInt(seedStr));
+        for (let i = a.length - 1; i > 0; i--) {{
+            const j = Math.floor(rng() * (i + 1));
+            const tmp = a[i];
+            a[i] = a[j];
+            a[j] = tmp;
+        }}
+        return a;
     }}
 
     function safePlay() {{
@@ -913,11 +943,20 @@ html_code = f"""
         }}
         const basePlaylist = radioData.playlists[key] || [];
 
-        // Her playlist için sayfa yüklenince bir kez karıştırılmış kopya kullan
-        let playlist = shuffledPlaylists[key];
+        // Her gün 1 kez değişsin ama aynı anda tüm kullanıcılar aynı şarkıyı görsün.
+        const dateObj = new Date();
+        const dateStr = dateObj.getFullYear() + '-' +
+            String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
+            String(dateObj.getDate()).padStart(2, '0');
+        const cacheKey = key + '|' + dateStr;
+
+        const dailyShuffledPlaylists = window.dailyShuffledPlaylists || {{}};
+        window.dailyShuffledPlaylists = dailyShuffledPlaylists;
+
+        let playlist = dailyShuffledPlaylists[cacheKey];
         if (!playlist || playlist.length !== basePlaylist.length) {{
-            playlist = basePlaylist.slice().sort(() => Math.random() - 0.5);
-            shuffledPlaylists[key] = playlist;
+            playlist = deterministicShuffle(basePlaylist, cacheKey);
+            dailyShuffledPlaylists[cacheKey] = playlist;
         }}
 
         const totalDuration = playlist.reduce((a, b) => a + b.duration, 0);
@@ -1024,3 +1063,4 @@ iframe { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: 
     unsafe_allow_html=True,
 )
 components.html(html_code, height=2000)
+
