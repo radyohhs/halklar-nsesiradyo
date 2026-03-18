@@ -330,7 +330,7 @@ if not ably_api_key:
         ably_api_key = _env_key
         ably_key_source = "env"
 
-ably_token_request = None
+ably_token = None
 ably_error = None
 
 if not ably_api_key:
@@ -340,30 +340,30 @@ elif not AblyRest:
 else:
     try:
         ably = AblyRest(ably_api_key)
-        # TokenRequest bazı ably sürümlerinde coroutine dönebiliyor, onu da yakala
-        _tr = ably.auth.create_token_request({"client_id": "radyo-web"})
+        # Token (kısa ömürlü) üret; çok sekmeli kullanımda TokenRequest'ten daha stabil
+        _tok = ably.auth.request_token({"client_id": "radyo-web"})
 
-        if asyncio.iscoroutine(_tr):
-            _tr = asyncio.run(_tr)
+        if asyncio.iscoroutine(_tok):
+            _tok = asyncio.run(_tok)
 
         # json.dumps için dict'e çevir
-        if hasattr(_tr, "to_dict"):
-            ably_token_request = _tr.to_dict()
-        elif isinstance(_tr, dict):
-            ably_token_request = _tr
+        if hasattr(_tok, "to_dict"):
+            ably_token = _tok.to_dict()
+        elif isinstance(_tok, dict):
+            ably_token = _tok
         else:
-            ably_token_request = dict(_tr)
+            ably_token = dict(_tok)
     except Exception as e:
-        ably_token_request = None
-        ably_error = f"TokenRequest hatası: {type(e).__name__}: {e}"
+        ably_token = None
+        ably_error = f"Token hatası: {type(e).__name__}: {e}"
 
 data_json = json.dumps(
     {
         "playlists": PLAYLISTS,
         "imgs": IMG,
         "newroz": NEWROZ_MSGS,
-        "ablyTokenRequest": ably_token_request,
-        "ablyEnabled": bool(ably_token_request),
+        "ablyToken": ably_token,
+        "ablyEnabled": bool(ably_token),
         "ablyError": ably_error,
         "ablyKeySource": ably_key_source,
     }
@@ -665,12 +665,27 @@ html_code = f"""
         }}
 
         const realtime = new Ably.Realtime({{
-            authCallback: (params, cb) => cb(null, radioData.ablyTokenRequest)
+            token: radioData.ablyToken
         }});
         const channel = realtime.channels.get('radyo-chat');
 
+        const setStatus = (s) => {{ if (statusEl) statusEl.textContent = s; }};
+        if (sendEl) sendEl.disabled = true;
+
         realtime.connection.on((state) => {{
-            if (statusEl) statusEl.textContent = "Chat: " + state.current;
+            setStatus("Chat: " + state.current);
+        }});
+
+        channel.on((state) => {{
+            setStatus("Chat: " + realtime.connection.state + " / kanal: " + state.current);
+            if (sendEl) sendEl.disabled = !(realtime.connection.state === 'connected' && state.current === 'attached');
+        }});
+
+        channel.attach((err) => {{
+            if (err) {{
+                setStatus("Chat attach hatası: " + (err.message || String(err)));
+                if (sendEl) sendEl.disabled = true;
+            }}
         }});
 
         channel.subscribe('msg', (m) => {{
