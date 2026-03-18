@@ -562,82 +562,140 @@ html_code = f"""
         
         #control-button {{ margin-top: 4vh; padding: 1.5vh 8vh; font-size: 1vh; font-weight: bold; background: transparent; color: #fff; border: 1px solid #333; border-radius: 50px; cursor: pointer; }}
 
-        /* ---------------- Responsive (Mobil) ---------------- */
-        /* Mobil/Tablet (dikey) için: genişlikten bağımsız daha güvenli tetik */
-        @media (orientation: portrait) and (max-width: 1200px) {{
-            .top-header {{ height: 20dvh; }}
-            .header-title {{ font-size: clamp(24px, 6.5vw, 40px); letter-spacing: 10px; }}
-
-            /* Absolute konumlar mobilde üst üste binebiliyor */
-            .live-stats {{ position: static; margin-top: 10px; }}
-            #newroz-sub {{ font-size: clamp(12px, 2.1vh, 18px); letter-spacing: 5px; margin-top: 12px; }}
-            .viewer-text {{ font-size: 1.0vh; letter-spacing: 1.5px; }}
-
-            .main-grid {{
-                flex-direction: column;
-                height: calc(100dvh - 20dvh);
-            }}
-            .panel {{ padding: 1.2dvh; height: auto; }}
-
-            .col-flow {{
-                flex: 0 0 auto;
-                border-right: none;
-                border-bottom: 1px solid #111;
-                overflow-y: auto;
-                overflow-x: hidden;
-                max-height: 22dvh;
-            }}
-            .col-player {{ flex: 0 0 auto; }}
-            .col-chat {{
-                flex: 1 1 auto;
-                border-left: none;
-                border-top: 1px solid #111;
-                max-height: 58dvh;
-            }}
-
-            .disk-wrapper {{
-                width: clamp(160px, 42vw, 260px);
-                height: clamp(160px, 42vw, 260px);
-                border: 10px solid #111;
-            }}
-            #display-song-name {{
-                font-size: clamp(16px, 3.2vh, 22px);
-                margin-top: 2dvh;
-                letter-spacing: 3px;
-            }}
-            #display-category-name {{
-                font-size: clamp(12px, 2.2vh, 16px);
-                margin-top: 1dvh;
-                letter-spacing: 4px;
-            }}
-            #control-button {{
-                margin-top: 2dvh;
-                padding: 14px 26px;
-                font-size: 14px;
-                border-radius: 999px;
-            }}
-            .row-item {{ padding: 0.8dvh 0.9vh; }}
-            .row-desc {{ font-size: clamp(12px, 1.9vh, 14px); }}
-
-            .col-chat .chat-wrap {{
-                margin-top: 0.8dvh;
-                gap: 0.7dvh;
-            }}
-            .col-chat .chat-input {{ gap: 0.6dvh; }}
-            .col-chat #chatName {{ flex: 0.45; }}
+        /* ---------------- Mobil düzen (JS class ile) ---------------- */
+        html.mobile-layout, body.mobile-layout {{
+            overflow-y: hidden; /* panel içleri scroll olacak */
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+        }}
+        html.mobile-layout .top-header, body.mobile-layout .top-header {{
+            height: 20dvh;
+        }}
+        html.mobile-layout .header-title, body.mobile-layout .header-title {{
+            font-size: clamp(24px, 6.5vw, 40px);
+            letter-spacing: 10px;
+        }}
+        html.mobile-layout .live-stats, body.mobile-layout .live-stats {{
+            position: static;
+            margin-top: 10px;
+        }}
+        html.mobile-layout #newroz-sub, body.mobile-layout #newroz-sub {{
+            font-size: clamp(12px, 2.1vh, 18px);
+            letter-spacing: 5px;
+            margin-top: 12px;
+        }}
+        html.mobile-layout .viewer-text, body.mobile-layout .viewer-text {{
+            font-size: 1.0vh;
+            letter-spacing: 1.5px;
         }}
 
-        @media (max-width: 420px) {{
-            .col-chat .chat-input {{ flex-direction: column; }}
-            .col-chat #chatName {{ flex: 0 0 auto; width: 100%; }}
-            .col-chat #chatText {{ width: 100%; }}
-            .col-chat #chatSend {{ width: 100%; }}
+        html.mobile-layout .main-grid, body.mobile-layout .main-grid {{
+            flex-direction: column;
+            height: calc(100dvh - 20dvh);
+            min-height: 0; /* flex için */
+            flex: 1 1 auto;
+        }}
+        html.mobile-layout .panel, body.mobile-layout .panel {{
+            padding: 1.2dvh;
+            height: auto;
+            min-height: 0; /* içerik taşınca binmeyi engeller */
+        }}
+        html.mobile-layout .col-flow, body.mobile-layout .col-flow {{
+            flex: 0 0 26dvh; /* akış çok büyümesin */
+            max-height: 26dvh;
+            border-right: none;
+            border-bottom: 1px solid #111;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }}
+        html.mobile-layout .col-player, body.mobile-layout .col-player {{
+            flex: 0 0 32dvh;
+            max-height: 32dvh;
+        }}
+        html.mobile-layout .col-chat, body.mobile-layout .col-chat {{
+            flex: 1 1 auto; /* kalan yükseklik */
+            border-left: none;
+            border-top: 1px solid #111;
+            max-height: none;
+            min-height: 0;
+        }}
+
+        html.mobile-layout .disk-wrapper, body.mobile-layout .disk-wrapper {{
+            width: clamp(160px, 42vw, 260px);
+            height: clamp(160px, 42vw, 260px);
+            border: 10px solid #111;
+        }}
+        html.mobile-layout #display-song-name, body.mobile-layout #display-song-name {{
+            font-size: clamp(16px, 3.2vh, 22px);
+            margin-top: 2dvh;
+            letter-spacing: 3px;
+        }}
+        html.mobile-layout #display-category-name, body.mobile-layout #display-category-name {{
+            font-size: clamp(12px, 2.2vh, 16px);
+            margin-top: 1dvh;
+            letter-spacing: 4px;
+        }}
+        html.mobile-layout #control-button, body.mobile-layout #control-button {{
+            margin-top: 2dvh;
+            padding: 14px 26px;
+            font-size: 14px;
+            border-radius: 999px;
+        }}
+        html.mobile-layout .row-item, body.mobile-layout .row-item {{
+            padding: 0.8dvh 0.9vh;
+            flex: 0 0 auto; /* mobilde satırların eşit dağıtılmasını durdur; kartlar kendi yüksekliğini alsın */
+            min-height: auto;
+        }}
+        html.mobile-layout .col-flow .row-item, body.mobile-layout .col-flow .row-item {{
+            overflow: hidden;
+        }}
+        html.mobile-layout .row-desc, body.mobile-layout .row-desc {{
+            font-size: clamp(12px, 1.9vh, 14px);
+        }}
+        html.mobile-layout .col-flow .row-item > div:first-child {{
+            font-size: 12px;
+            white-space: nowrap;
+        }}
+        html.mobile-layout .col-flow .row-item > div:nth-child(2) {{
+            font-size: 14px;
+            line-height: 1.15;
+        }}
+
+        html.tiny-layout .col-chat .chat-input, body.tiny-layout .col-chat .chat-input {{
+            flex-direction: column;
+        }}
+        html.tiny-layout #chatName, body.tiny-layout #chatName {{
+            flex: 0 0 auto;
+            width: 100%;
+        }}
+        html.tiny-layout #chatText, body.tiny-layout #chatText {{
+            width: 100%;
+        }}
+        html.tiny-layout #chatSend, body.tiny-layout #chatSend {{
+            width: 100%;
         }}
 
     </style>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
 </head>
 <body>
+<script>
+    (function () {{
+        function apply() {{
+            const w = window.innerWidth || 0;
+            const isMobile = w <= 1024;
+            const isTiny = w <= 420;
+            document.documentElement.classList.toggle('mobile-layout', isMobile);
+            document.body.classList.toggle('mobile-layout', isMobile);
+            document.documentElement.classList.toggle('tiny-layout', isTiny);
+            document.body.classList.toggle('tiny-layout', isTiny);
+        }}
+        apply();
+        window.addEventListener('resize', apply);
+    }})();
+</script>
 <div class="top-header">
     <div class="header-title">HALKLARIN SESİ RADYOSU</div>
     <div id="newroz-sub">NEWROZ PÎROZ BE!</div>
