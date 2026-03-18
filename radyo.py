@@ -603,16 +603,16 @@ html_code = f"""
             min-height: 0; /* içerik taşınca binmeyi engeller */
         }}
         html.mobile-layout .col-flow, body.mobile-layout .col-flow {{
-            flex: 0 0 26dvh; /* akış çok büyümesin */
-            max-height: 26dvh;
+            flex: 0 0 12dvh; /* mobilde akışı çok kısalt */
+            max-height: 12dvh;
             border-right: none;
             border-bottom: 1px solid #111;
             overflow-y: auto;
             overflow-x: hidden;
         }}
         html.mobile-layout .col-player, body.mobile-layout .col-player {{
-            flex: 0 0 32dvh;
-            max-height: 32dvh;
+            flex: 0 0 24dvh;
+            max-height: 24dvh;
         }}
         html.mobile-layout .col-chat, body.mobile-layout .col-chat {{
             flex: 1 1 auto; /* kalan yükseklik */
@@ -623,13 +623,13 @@ html_code = f"""
         }}
 
         html.mobile-layout .disk-wrapper, body.mobile-layout .disk-wrapper {{
-            width: clamp(160px, 42vw, 260px);
-            height: clamp(160px, 42vw, 260px);
-            border: 10px solid #111;
+            width: clamp(110px, 34vw, 175px);
+            height: clamp(110px, 34vw, 175px);
+            border: 7px solid #111;
         }}
         html.mobile-layout #display-song-name, body.mobile-layout #display-song-name {{
             font-size: clamp(16px, 3.2vh, 22px);
-            margin-top: 2dvh;
+            margin-top: 0.7dvh;
             letter-spacing: 3px;
         }}
         html.mobile-layout #display-category-name, body.mobile-layout #display-category-name {{
@@ -638,13 +638,13 @@ html_code = f"""
             letter-spacing: 4px;
         }}
         html.mobile-layout #control-button, body.mobile-layout #control-button {{
-            margin-top: 2dvh;
+            margin-top: 0.8dvh;
             padding: 14px 26px;
             font-size: 14px;
             border-radius: 999px;
         }}
         html.mobile-layout .row-item, body.mobile-layout .row-item {{
-            padding: 0.8dvh 0.9vh;
+            padding: 0.45dvh 0.7vh;
             flex: 0 0 auto; /* mobilde satırların eşit dağıtılmasını durdur; kartlar kendi yüksekliğini alsın */
             min-height: auto;
         }}
@@ -653,6 +653,9 @@ html_code = f"""
         }}
         html.mobile-layout .row-desc, body.mobile-layout .row-desc {{
             font-size: clamp(12px, 1.9vh, 14px);
+        }}
+        html.mobile-layout .col-flow .row-desc, body.mobile-layout .col-flow .row-desc {{
+            display: none; /* mobilde akış kartları arası boşluk çok genişliyor, açıklamayı kaldırıyoruz */
         }}
         html.mobile-layout .col-flow .row-item > div:first-child {{
             font-size: 12px;
