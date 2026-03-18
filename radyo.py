@@ -682,8 +682,17 @@ html_code = f"""
             const name = (nameEl && nameEl.value ? nameEl.value.trim() : '') || 'Anonim';
             const text = (textEl && textEl.value ? textEl.value.trim() : '');
             if (!text) return;
-            channel.publish('msg', {{ name, text }});
+
+            // Önce ekrana yaz (kullanıcı kendi mesajını hemen görsün)
+            pushMsg(name, text);
             if (textEl) textEl.value = '';
+
+            // Sonra Ably üzerinden yayınla, hata olursa durum satırına yaz
+            channel.publish('msg', {{ name, text }}, (err) => {{
+                if (err && statusEl) {{
+                    statusEl.textContent = "Mesaj gönderilemedi: " + (err.message || String(err));
+                }}
+            }});
         }};
 
         if (sendEl) sendEl.onclick = send;
