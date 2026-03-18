@@ -603,16 +603,16 @@ html_code = f"""
             min-height: 0; /* içerik taşınca binmeyi engeller */
         }}
         html.mobile-layout .col-flow, body.mobile-layout .col-flow {{
-            flex: 0 0 12dvh; /* mobilde akışı çok kısalt */
-            max-height: 12dvh;
+            flex: 0 0 8dvh; /* mobilde akışı daha da mini yap */
+            max-height: 8dvh;
             border-right: none;
             border-bottom: 1px solid #111;
             overflow-y: auto;
             overflow-x: hidden;
         }}
         html.mobile-layout .col-player, body.mobile-layout .col-player {{
-            flex: 0 0 24dvh;
-            max-height: 24dvh;
+            flex: 0 0 22dvh;
+            max-height: 22dvh;
         }}
         html.mobile-layout .col-chat, body.mobile-layout .col-chat {{
             flex: 1 1 auto; /* kalan yükseklik */
@@ -623,13 +623,13 @@ html_code = f"""
         }}
 
         html.mobile-layout .disk-wrapper, body.mobile-layout .disk-wrapper {{
-            width: clamp(110px, 34vw, 175px);
-            height: clamp(110px, 34vw, 175px);
-            border: 7px solid #111;
+            width: clamp(100px, 32vw, 160px);
+            height: clamp(100px, 32vw, 160px);
+            border: 6px solid #111;
         }}
         html.mobile-layout #display-song-name, body.mobile-layout #display-song-name {{
-            font-size: clamp(16px, 3.2vh, 22px);
-            margin-top: 0.7dvh;
+            font-size: clamp(15px, 3.0vh, 20px);
+            margin-top: 0.6dvh;
             letter-spacing: 3px;
         }}
         html.mobile-layout #display-category-name, body.mobile-layout #display-category-name {{
