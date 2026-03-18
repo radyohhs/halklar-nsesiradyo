@@ -348,7 +348,16 @@ else:
         # Token (kısa ömürlü) üret; çok sekmeli kullanımda TokenRequest'ten daha stabil
         # Capability istemiyoruz: Ably key'in kendi capability'si ile kesişim bazen boş olabiliyor.
         # (40160: Intersection ... is empty)
-        _tok = ably.auth.request_token({"client_id": "radyo-web"})
+        _tok = ably.auth.request_token(
+            {
+                "client_id": "radyo-web",
+                # Token'ın bu kanala erişmesi için capability'i açıkça belirt.
+                # Yapı: { "channel-name": ["publish","subscribe"] }
+                "capability": json.dumps(
+                    {ably_channel: ["publish", "subscribe"]}
+                ),
+            }
+        )
 
         if asyncio.iscoroutine(_tok):
             _tok = asyncio.run(_tok)
