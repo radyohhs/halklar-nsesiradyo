@@ -1193,6 +1193,8 @@ html_code = f"""
     audio.preload = "auto";
     audio.muted = true;
     audio.crossOrigin = "anonymous";
+    // Mobilde (özellikle iOS) autoplay davranışını iyileştirmek için
+    try {{ audio.playsInline = true; }} catch (_) {{ }}
 
     function setStatus(text) {{
         const el = document.getElementById('display-song-name');
@@ -1413,6 +1415,11 @@ html_code = f"""
             sync();
             safePlay();
         }};
+        // Streamlit component/iframe içinde event yakalamak için capture + document kullan
+        const opts = {{ once: true, passive: true, capture: true }};
+        document.addEventListener('touchstart', tryUnmute, opts);
+        document.addEventListener('pointerdown', tryUnmute, opts);
+        document.addEventListener('click', tryUnmute, {{ once: true, capture: true }});
         window.addEventListener('touchstart', tryUnmute, {{ once: true, passive: true }});
         window.addEventListener('click', tryUnmute, {{ once: true }});
     }})();
