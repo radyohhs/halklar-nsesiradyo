@@ -3,6 +3,8 @@ import json
 import streamlit.components.v1 as components
 import os
 import asyncio
+import re
+import unicodedata
 
 try:
     from ably import AblyRest
@@ -351,6 +353,50 @@ PINNED_DJ_MESSAGES = {
     "yusuf": "DJ yusuf keyifli seyirler diler.",
 }
 
+# Küfür/NSFW kelime listesi (txt dosyasından)
+def _load_banned_stems_from_txt(txt_filename: str, cap: int = 5000):
+    """
+    txt'deki kelimeleri normalize edip boşluksuz (compact) kök/stem olarak JS tarafına gönderir.
+    Çok büyük listelerde sayfayı yavaşlatmamak için cap uygulanır.
+    """
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base_dir, txt_filename)
+        if not os.path.exists(path):
+            return []
+
+        def normalize_for_filter_py(s: str) -> str:
+            t = (s or "").lower()
+            t = unicodedata.normalize("NFD", t)
+            t = "".join(ch for ch in t if unicodedata.category(ch) != "Mn")  # diakritikleri sil
+            # harf/rakam/boşluk dışında kalanları boşluğa çevir
+            t = re.sub(r"[^a-z0-9\\s]+", " ", t)
+            t = re.sub(r"\\s+", " ", t).strip()
+            return t
+
+        stems = set()
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                raw = line.strip()
+                if not raw:
+                    continue
+                norm = normalize_for_filter_py(raw)
+                if not norm:
+                    continue
+                compact = norm.replace(" ", "")
+                if len(compact) < 3:
+                    continue
+                stems.add(compact)
+                if len(stems) >= cap:
+                    break
+
+        return list(stems)
+    except Exception:
+        return []
+
+
+BANNED_STEMS_FROM_TXT = _load_banned_stems_from_txt("banned_words.txt")
+
 # --- CANLI CHAT (ABLY) ---
 # API key'i koda yazma. Şunlardan birine koy:
 # - .streamlit/secrets.toml: ABLY_API_KEY="xxx:yyy"
@@ -434,6 +480,7 @@ data_json = json.dumps(
         "djs": DJ_BY_PROGRAM,
         "djImages": DJ_IMAGE_URLS,
         "pinnedDjMessages": PINNED_DJ_MESSAGES,
+        "bannedStemsFromTxt": BANNED_STEMS_FROM_TXT,
         "ablyToken": ably_token,
         "ablyChannel": ably_channel,
         "ablyEnabled": bool(ably_token),
@@ -1366,13 +1413,11 @@ ok
 siktir
 `;
 
-        const bannedWords = bannedWordsRaw
-            .split('\n')
-            .map(s => s.trim())
-            .filter(Boolean);
-        const bannedWordsNorm = bannedWords
-            .map(normalizeForFilter)
-            .filter(Boolean);
+        // Performans: Çok büyük bir listeyi burada parçalayarak normalize etmek
+        // sayfa yüklemesini ciddi yavaşlatıyor.
+        // Bu yüzden ana filtreleme, alttaki bannedStemsRaw/bannedPhrasesRaw ile yapılıyor.
+        const bannedWords = [];
+        const bannedWordsNorm = [];
 
         const sexualWords = [
             // Açık içerik yerine daha genel NSFW/erotik çağrışımlar (graphic kelimeler eklemeden)
@@ -1513,6 +1558,12 @@ siktir
         const bannedStemsNorm = bannedStemsRaw.map(normalizeForFilter).filter(Boolean);
         const bannedPhrasesNorm = bannedPhrasesRaw.map(normalizeForFilter).filter(Boolean);
 
+        // txt'den gelen kelimeler Python tarafında normalize edilmiş "compact" stringler.
+        const bannedStemsFromTxt = (radioData && radioData.bannedStemsFromTxt) ? radioData.bannedStemsFromTxt : [];
+        const bannedStemsAll = Array.from(new Set([...(bannedStemsNorm || []), ...(bannedStemsFromTxt || [])]));
+
+        const bannedPhrasesCompact = (bannedPhrasesNorm || []).map(ph => String(ph || '').replace(/\s+/g, '')).filter(ph => ph.length >= 3);
+
         const isProfane = (text) => {{
             const t = normalizeForFilter(text);
             if (!t) return false;
@@ -1529,7 +1580,7 @@ siktir
             }}
 
             // Kök/desen kontrolü (tek tek kelime eklemeden yakalama)
-            for (const stem of bannedStemsNorm) {{
+            for (const stem of bannedStemsAll) {{
                 if (!stem) continue;
                 if (stem.length <= 3) {{
                     // Kısa köklerde false-positive azaltmak için token sınırı uygula
@@ -1543,7 +1594,7 @@ siktir
                 }}
             }}
 
-            for (const ph of bannedPhrasesNorm) {{
+            for (const ph of bannedPhrasesCompact) {{
                 if (ph && ph.length >= 3 && tCompact.includes(ph)) return true;
             }}
 
