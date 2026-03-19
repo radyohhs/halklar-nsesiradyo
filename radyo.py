@@ -1084,6 +1084,73 @@ html_code = f"""
             if (activeNameCount[nn] <= 0) delete activeNameCount[nn];
         }};
 
+        // Basit küfür + spam engelleyici (client-side).
+        // Not: Bu filtreler kesin güvenlik sağlamaz (bypass edilebilir),
+        // ama normal kullanıcılar için büyük ölçüde engeller.
+        const normalizeForFilter = (s) => {{
+            try {{
+                const t = (s === null || s === undefined) ? '' : String(s);
+                return t
+                    .toLowerCase()
+                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '') // Türkçe karakter sadeleştir
+                    .replace(/[^a-z0-9\\s]/g, ' ') // noktalama vb. ayikla
+                    .replace(/\\s+/g, ' ')
+                    .trim()
+                    // mükerrer harfleri biraz azalt: 'siiiiik' -> 'siiik' gibi
+                    .replace(/([a-z0-9])\\1{{2,}}/g, '$1$1');
+            }} catch (e) {{
+                return String(s || '');
+            }}
+        }};
+
+        const bannedWords = [
+            // Starter küfür listesi (istersen buraya ekleme/çıkarma yaparsin)
+            // Not: hedef gruplara yönelik aşağılayıcı kelimeleri özellikle eklemiyorum.
+            'amk',
+            'orospu',
+            'sik',
+            'yarrak',
+            'göt',
+            'got',
+            'amcik',
+            'serefsiz',
+            'siktir',
+            'anan',
+            'ananı',
+            'ananin',
+            'pic',
+            'sikeyim',
+            'sikerim',
+            'sikiyim',
+            'sikmek',
+        ];
+
+        const isProfane = (text) => {{
+            const t = normalizeForFilter(text);
+            if (!t) return false;
+            const tCompact = t.replace(/\\s+/g, '');
+
+            for (const w of bannedWords) {{
+                const nw = normalizeForFilter(w);
+                if (!nw) continue;
+
+                // Kelime bazlı kontrol (daha az false-positive)
+                const tokens = t.split(/\\s+/);
+                if (tokens.includes(nw)) return true;
+
+                // Bozma/arasına boşluk koyma: "a m k" -> "amk"
+                const nwCompact = nw.replace(/\\s+/g, '');
+                if (nwCompact.length >= 3 && tCompact.includes(nwCompact)) return true;
+            }}
+
+            return false;
+        }};
+
+        let myLastSendAt = 0;
+        let mySendTimes = []; // son 60 saniyedeki gönderimler
+        let myLastNormText = '';
+        let myRepeatCount = 0;
+
         const updateActiveColors = () => {{
             if (!logEl) return;
             const nameEls = logEl.querySelectorAll('.chat-name[data-name]');
@@ -1097,6 +1164,10 @@ html_code = f"""
 
         const pushMsg = (name, text) => {{
             if (!logEl) return;
+            // Gelen mesajlarda küfür varsa ekrana basma
+            try {{
+                if (isProfane(text)) return;
+            }} catch (e) {{}}
             const displayName = normalizeName(name);
             const wrap = document.createElement('div');
             wrap.className = 'chat-msg';
@@ -1345,8 +1416,43 @@ html_code = f"""
             const name = (nameEl && nameEl.value ? nameEl.value.trim() : '') || 'Anonim';
             const text = (textEl && textEl.value ? textEl.value.trim() : '');
             if (!text) return;
+            // Küfür kontrolü
+            try {{
+                if (isProfane(text)) {{
+                    if (statusEl) statusEl.textContent = "Küfür/spam tespit edildi. Mesaj engellendi.";
+                    return;
+                }}
+            }} catch (e) {{}}
 
-            // Metin kutusunu hemen temizle
+            // Spam kontrolü (hız + tekrar + saniye penceresi)
+            try {{
+                const now = Date.now();
+                if (now - myLastSendAt < 1200) {{
+                    if (statusEl) statusEl.textContent = "Spam engellendi: çok hızlı mesaj attın.";
+                    return;
+                }}
+                myLastSendAt = now;
+
+                mySendTimes = mySendTimes.filter(ts => now - ts < 60000);
+                mySendTimes.push(now);
+                if (mySendTimes.length > 10) {{
+                    if (statusEl) statusEl.textContent = "Spam engellendi: çok fazla mesaj gönderdin.";
+                    return;
+                }}
+
+                const norm = normalizeForFilter(text);
+                if (norm && norm === myLastNormText) myRepeatCount += 1;
+                else {{
+                    myLastNormText = norm;
+                    myRepeatCount = 0;
+                }}
+                if (myRepeatCount >= 2) {{
+                    if (statusEl) statusEl.textContent = "Spam engellendi: mesajın tekrar ediyor.";
+                    return;
+                }}
+            }} catch (e) {{}}
+
+            // Mesaj onaylandı: metin kutusunu temizle
             if (textEl) textEl.value = '';
 
             // Kullanıcı adını presence'a da yansıt (aktiflik rengi doğru olsun)
