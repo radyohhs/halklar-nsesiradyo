@@ -2240,6 +2240,7 @@ siktir
     let trackStartTime = 0;
     let currentTrackUrlGuard = '';
     let lastAudioErrorAt = 0;
+    let trackEndAtMs = 0;
 
     audio.addEventListener('timeupdate', () => {{
         try {{
@@ -2323,12 +2324,21 @@ siktir
         }}
     }}
 
-    function setSrcAndSeek(url, seekTime, shouldPlay) {{
+    function setSrcAndSeek(url, seekTime, shouldPlay, expectedDurationSec) {{
         audio.src = url;
         // Yeni parçaya geçince "ilerleme yok" sayacını sıfırla.
         currentTrackUrlGuard = url;
         trackStartAtMs = Date.now();
         trackStartTime = seekTime;
+        try {{
+            const dur = typeof expectedDurationSec === 'number' ? expectedDurationSec : NaN;
+            if (typeof dur === 'number' && isFinite(dur) && dur > 0) {{
+                const left = Math.max(0, dur - seekTime);
+                trackEndAtMs = trackStartAtMs + left * 1000;
+            }} else {{
+                trackEndAtMs = 0;
+            }}
+        }} catch (_) {{ trackEndAtMs = 0; }}
         lastProgressAt = Date.now();
         lastProgressTime = seekTime;
         const applySeek = () => {{
@@ -2568,9 +2578,33 @@ siktir
             }}
         }}
 
-        // Playlist değiştiğinde (aynı URL denk gelse bile) mutlaka yeniden senkronla
-        if (keyChanged || audio.src !== currentTrack.url) {{
-            setSrcAndSeek(currentTrack.url, seekTime, !isMuted);
+        // Playlist değiştiğinde hedef track'e geç (erken geçişi engellemek için geciktirme var)
+        if (audio.src !== currentTrack.url) {{
+            const canSwitchNow = () => {{
+                try {{
+                    const dur = (audio && typeof audio.duration === 'number') ? audio.duration : NaN;
+                    const cur = (audio && typeof audio.currentTime === 'number') ? audio.currentTime : NaN;
+                    if (typeof dur === 'number' && isFinite(dur) && dur > 0 && typeof cur === 'number' && isFinite(cur)) {{
+                        // Gerçek MP3 süre bilgisiyse, kalan süreye göre karar ver
+                        const remaining = dur - cur;
+                        return remaining <= 1.2; // 1.2 saniye kalınca geç
+                    }}
+                }} catch (_) {{}}
+
+                // duration henüz gelmemişse, son switch'ten hesaplanan tahmini bitişe göre bak
+                try {{
+                    if (trackEndAtMs && isFinite(trackEndAtMs) && trackEndAtMs > 0) {{
+                        return Date.now() >= (trackEndAtMs - 250);
+                    }}
+                }} catch (_) {{}}
+
+                // Emin değilsek (ilk yükleme gibi) geç
+                return true;
+            }};
+
+            if (canSwitchNow()) {{
+                setSrcAndSeek(currentTrack.url, seekTime, !isMuted, currentTrack.duration);
+            }}
         }}
 
         // Not: currentTime'ı her tick'te zorlamak bazı tarayıcılarda takılmaya sebep olabiliyor.
@@ -2608,7 +2642,7 @@ siktir
                 lastStuckSkipAt = now;
                 playbackOffsetSeconds += Math.ceil(currentTrack.duration) + 2;
                 setStatus("OTOMATİK ATLA: " + formatTitleFromUrl(nextTrack.url));
-                setSrcAndSeek(nextTrack.url, 0, true);
+                setSrcAndSeek(nextTrack.url, 0, true, nextTrack.duration);
             }}
         }} catch (_) {{}}
 
