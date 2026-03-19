@@ -3,8 +3,6 @@ import json
 import streamlit.components.v1 as components
 import os
 import asyncio
-import re
-import unicodedata
 
 try:
     from ably import AblyRest
@@ -96,10 +94,10 @@ SS = [
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/yeni_turku_ozgurluk_bugdayinturkusu_adamuzik_yx5ew6v_dzq.mp3", "duration": 247},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_bir_mayis.mp3", "duration": 215},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_cav_bella.mp3", "duration": 165},
-    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_defol_amerika.mp3", "duration": 145},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_kizildere.mp3", "duration": 215},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_hakliyiz_kazanacagiz.mp3", "duration": 265},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_daglara_gel.mp3", "duration": 240},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_defol_amerika.mp3", "duration": 240},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_devrim_yuruyusumuz_suruyor.mp3", "duration": 240},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_dunya_haklari_kardestir_bu_memleket_bizim.mp3", "duration": 240},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_dusenlere.mp3", "duration": 240},
@@ -353,50 +351,6 @@ PINNED_DJ_MESSAGES = {
     "yusuf": "DJ yusuf keyifli seyirler diler.",
 }
 
-# Küfür/NSFW kelime listesi (txt dosyasından)
-def _load_banned_stems_from_txt(txt_filename: str, cap: int = 5000):
-    """
-    txt'deki kelimeleri normalize edip boşluksuz (compact) kök/stem olarak JS tarafına gönderir.
-    Çok büyük listelerde sayfayı yavaşlatmamak için cap uygulanır.
-    """
-    try:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(base_dir, txt_filename)
-        if not os.path.exists(path):
-            return []
-
-        def normalize_for_filter_py(s: str) -> str:
-            t = (s or "").lower()
-            t = unicodedata.normalize("NFD", t)
-            t = "".join(ch for ch in t if unicodedata.category(ch) != "Mn")  # diakritikleri sil
-            # harf/rakam/boşluk dışında kalanları boşluğa çevir
-            t = re.sub(r"[^a-z0-9\\s]+", " ", t)
-            t = re.sub(r"\\s+", " ", t).strip()
-            return t
-
-        stems = set()
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
-            for line in f:
-                raw = line.strip()
-                if not raw:
-                    continue
-                norm = normalize_for_filter_py(raw)
-                if not norm:
-                    continue
-                compact = norm.replace(" ", "")
-                if len(compact) < 3:
-                    continue
-                stems.add(compact)
-                if len(stems) >= cap:
-                    break
-
-        return list(stems)
-    except Exception:
-        return []
-
-
-BANNED_STEMS_FROM_TXT = _load_banned_stems_from_txt("banned_words.txt")
-
 # --- CANLI CHAT (ABLY) ---
 # API key'i koda yazma. Şunlardan birine koy:
 # - .streamlit/secrets.toml: ABLY_API_KEY="xxx:yyy"
@@ -480,7 +434,6 @@ data_json = json.dumps(
         "djs": DJ_BY_PROGRAM,
         "djImages": DJ_IMAGE_URLS,
         "pinnedDjMessages": PINNED_DJ_MESSAGES,
-        "bannedStemsFromTxt": BANNED_STEMS_FROM_TXT,
         "ablyToken": ably_token,
         "ablyChannel": ably_channel,
         "ablyEnabled": bool(ably_token),
@@ -656,37 +609,7 @@ html_code = f"""
         .panel {{ padding: 2vh; display: flex; flex-direction: column; background: #000; height: 100%; }}
         .col-flow {{ flex: 20; border-right: 1px solid #111; overflow: hidden; display: flex; flex-direction: column; }}
         .col-player {{ flex: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
-        .col-chat {{
-            flex: 20;
-            border-left: 1px solid #111;
-            background: #050505;
-            position: relative;
-            overflow: hidden;
-        }}
-        /* Chat arka planına yumuşak, blur'lı animasyon */
-        .col-chat::before {{
-            content: "";
-            position: absolute;
-            inset: -60px;
-            z-index: 0;
-            pointer-events: none;
-            background:
-                radial-gradient(circle at 20% 20%, rgba(255, 69, 0, 0.18), rgba(0,0,0,0) 55%),
-                radial-gradient(circle at 75% 55%, rgba(0, 255, 120, 0.10), rgba(0,0,0,0) 55%),
-                radial-gradient(circle at 40% 90%, rgba(255, 255, 255, 0.05), rgba(0,0,0,0) 60%);
-            filter: blur(16px);
-            opacity: 0.9;
-            animation: chatBgShift 7s ease-in-out infinite alternate;
-        }}
-        .col-chat > * {{
-            position: relative;
-            z-index: 1;
-        }}
-        @keyframes chatBgShift {{
-            0% {{ transform: translate(0px, 0px) scale(1.02); opacity: 0.75; }}
-            50% {{ transform: translate(10px, -8px) scale(1.04); opacity: 0.95; }}
-            100% {{ transform: translate(-8px, 6px) scale(1.03); opacity: 0.85; }}
-        }}
+        .col-chat {{ flex: 20; border-left: 1px solid #111; background: #050505; }}
 
         .flow-title {{
             padding: 1.1vh 1vh 0.8vh 1vh;
@@ -712,15 +635,15 @@ html_code = f"""
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 14px;
             padding: 1.2vh;
-            background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.45);
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.55);
         }}
         .chat-pinned {{
             padding: 0.9vh 1vh;
             border-radius: 12px;
             margin-bottom: 0.9vh;
-            background: rgba(255, 69, 0, 0.12);
-            border: 1px solid rgba(255, 69, 0, 0.22);
+            background: rgba(255, 69, 0, 0.14);
+            border: 1px solid rgba(255, 69, 0, 0.26);
             color: rgba(255,255,255,0.92);
             font-size: clamp(12px, 1.15vh, 14px);
             font-weight: 700;
@@ -738,13 +661,8 @@ html_code = f"""
             word-break: break-word;
             padding: 0.9vh 1vh;
             border-radius: 12px;
-            background: rgba(0,0,0,0.22);
-            border: 1px solid rgba(255,255,255,0.055);
-            animation: msgIn 420ms ease-out both;
-        }}
-        @keyframes msgIn {{
-            from {{ opacity: 0; transform: translateY(6px) scale(0.995); }}
-            to {{ opacity: 1; transform: translateY(0px) scale(1); }}
+            background: rgba(0,0,0,0.30);
+            border: 1px solid rgba(255,255,255,0.06);
         }}
         .col-chat .chat-msg:last-child {{ margin-bottom: 0; }}
         .col-chat .chat-meta {{
@@ -753,10 +671,10 @@ html_code = f"""
             letter-spacing: 0.4px;
             margin-bottom: 0.35vh;
         }}
-        .chat-name-active {{ color: rgba(0, 255, 120, 0.85); font-weight: 750; }}
-        .chat-name-inactive {{ color: rgba(255, 100, 100, 0.85); font-weight: 750; }}
-        .chat-time {{ color: rgba(255,255,255,0.52); font-weight: 600; }}
-        .col-chat .chat-input {{ display: flex; gap: 0.8vh; align-items: center; }}
+        .chat-name-active {{ color: rgba(0, 255, 120, 0.95); font-weight: 800; }}
+        .chat-name-inactive {{ color: rgba(255, 80, 80, 0.95); font-weight: 800; }}
+        .chat-time {{ color: rgba(255,255,255,0.50); font-weight: 600; }}
+        .col-chat .chat-input {{ display: flex; gap: 0.8vh; }}
         .col-chat #chatName, .col-chat #chatText {{
             flex: 1;
             background: rgba(0,0,0,0.40);
@@ -766,7 +684,6 @@ html_code = f"""
             padding: 1vh 1.1vh;
             font-size: clamp(12px, 1.1vh, 14px);
             outline: none;
-            min-width: 0; /* flex'te taşmayı engeller (butonu saga kaydiran durum) */
         }}
         .col-chat #chatName {{ flex: 0.65; }}
         .col-chat #chatName:focus, .col-chat #chatText:focus {{
@@ -778,12 +695,11 @@ html_code = f"""
             color: #fff;
             border: 1px solid rgba(255,69,0,0.40);
             border-radius: 12px;
-            padding: 1vh 1.1vh;
+            padding: 1vh 1.4vh;
             font-size: clamp(12px, 1.05vh, 14px);
             cursor: pointer;
             white-space: nowrap;
             transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
-            flex: 0 0 auto;
         }}
         .col-chat #chatSend:hover {{ background: rgba(255,69,0,0.22); border-color: rgba(255,69,0,0.55); }}
         .col-chat #chatSend:active {{ transform: translateY(1px); }}
@@ -807,15 +723,6 @@ html_code = f"""
         .col-chat #chatAdminLine .admin-label {{ color: #ff4500; font-weight: 900; }}
         .col-chat #chatAdminLine .admin-name {{ color: #ffffff; font-weight: 800; }}
         .col-chat #chatAdminLine .admin-active {{ color: rgba(0,255,0,0.70); font-weight: 900; }}
-        .col-chat #chatPresenceLine {{
-            text-align: center;
-            color: rgba(255,255,255,0.78);
-            font-size: clamp(10px, 1.0vh, 12px);
-            letter-spacing: 1px;
-            margin-top: 0.2vh;
-            margin-bottom: 0.2vh;
-            user-select: none;
-        }}
         
         /* Yayın akışı: kaydırmasız, 1 ekrana sığsın */
         .row-item {{ flex: 1 1 0; min-height: 0; padding: 0.95vh 1vh; border-bottom: 1px solid rgba(255,255,255,0.06); opacity: 0.38; }}
@@ -1134,7 +1041,6 @@ html_code = f"""
     <div class="panel col-chat">
         <div style="text-align:center; color:#ff4500; font-size:1.1vh; font-weight:bold; letter-spacing:4px;">CANLI SOHBET</div>
         <div id="chatAdminLine"><span class="admin-label">ADMIN:</span> <span class="admin-name">--</span> <span class="admin-active">(aktif)</span></div>
-        <div id="chatPresenceLine">AKTİF KULLANICI: <span id="chatActiveCount">0</span></div>
         <div class="chat-wrap">
             <div id="chatPinned" class="chat-pinned"></div>
             <div id="chatLog" class="chat-log"></div>
@@ -1160,7 +1066,6 @@ html_code = f"""
         const statusEl = document.getElementById('chatStatus');
         const adminLineEl = document.getElementById('chatAdminLine');
         const pinnedEl = document.getElementById('chatPinned');
-        const activeCountEl = document.getElementById('chatActiveCount');
 
         try {{
         // Presence'a göre aktiflik rengi:
@@ -1179,461 +1084,6 @@ html_code = f"""
             if (activeNameCount[nn] <= 0) delete activeNameCount[nn];
         }};
 
-        const updateActiveCount = () => {{
-            try {{
-                const totalByMember = Object.keys(memberIdToName || {{}}).length;
-                if (activeCountEl) activeCountEl.textContent = String(totalByMember);
-            }} catch (_) {{
-                if (activeCountEl) activeCountEl.textContent = "0";
-            }}
-        }};
-
-        // Basit küfür + spam engelleyici (client-side).
-        // Not: Bu filtreler kesin güvenlik sağlamaz (bypass edilebilir),
-        // ama normal kullanıcılar için büyük ölçüde engeller.
-        const normalizeForFilter = (s) => {{
-            try {{
-                const t = (s === null || s === undefined) ? '' : String(s);
-                return t
-                    .toLowerCase()
-                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '') // Türkçe karakter sadeleştir
-                    .replace(/[^a-z0-9\\s]/g, ' ') // noktalama vb. ayikla
-                    .replace(/\\s+/g, ' ')
-                    .trim()
-                    // mükerrer harfleri biraz azalt: 'siiiiik' -> 'siiik' gibi
-                    .replace(/([a-z0-9])\\1{{2,}}/g, '$1$1');
-            }} catch (e) {{
-                return String(s || '');
-            }}
-        }};
-
-        // Küfür/argo engeli kelimeleri.
-        // Not: Bu filtreler client-side olduğu için %100 güvenlik değil; ama pratikte çoğu mesajı engeller.
-        const bannedWordsRaw = `
-amk
-orospu
-sik
-yarrak
-göt
-got
-amcik
-serefsiz
-siktir
-anan
-ananı
-ananin
-pic
-sikeyim
-sikerim
-sikiyim
-sikmek
-ibne
-agzina veririm
-agzini yuzunu sikerim
-allah belani versin
-allah cezani versin
-allahini
-am biti
-ambiti
-amcik
-amimi
-amimizi
-amina
-amina koyarim
-amini
-amini sikerim
-aminizi
-anani
-anan avradini
-avradini
-avag
-arsiz
-asil
-aşağılık
-asil
-asagilik
-asagilik kadin
-ateşin başına vurdu
-atesin basina vurdu
-avrat
-avradini
-ayağa düşürürüm
-ayaga dusururum
-azgin
-bacaklarini kirarim
-bacini
-beyinsiz
-bogazini kesecem
-bogazini
-bok
-cahil
-camis
-camiz
-cerceveni dagitirim
-cirkin
-curuk kadin
-curumussun
-daga kaldiririm
-dancuk
-dang
-dal
-davar
-deli
-dillerim
-dingil
-dinsiz
-domuz
-dumbugun kizi
-dumbuk
-eksik etek
-elinde kalirsin
-essolesek
-etigine ettigimin karisi
-eteğine ettiğimin karısı
-etigine ettigimin karisi
-façanı aşağı alırım
-facani asagi alirim
-fahise
-fettan
-gavur
-gavurun dolu
-geber
-genelev
-genelev kadini
-genelevlere dusesin
-geri zekali
-gerizekali
-gogus
-gorgusuz
-got oglani
-gotoglani
-got deligini
-gotdeligini
-gotume
-gotumu
-gotumuzu
-gotune
-gotunu
-gotunu keserim
-gotunu sikerim
-gotunuzu
-götünden sikerim
-hayvan
-hiyar
-kahpe
-kaltak
-kancik
-kani bozuk
-karnini deşerim
-karnini deserim
-kavatin kizi
-kiz
-kic
-kimden peydahladin
-kizismis
-komaya sokarim
-kopek
-malafat
-mamis
-mankafa
-manyak
-mezarina tukurmem
-mikrop
-o.c
-oç
-oc
-okuz
-oro
-orospu cocugu
-oro.?
-oç
-o.ç.
-Orospu cocugu
-p.k.k
-PKK
-DHKPC
-pandik
-pavyon karisi
-pavyona mi dusecen
-pezevenk
-pic
-piç
-pipi
-pisirik
-pislik
-popo
-psikopat
-pust
- sacakli
-sakal
-sapik
-serefsiz
-seyin basina vurdu
-sicar
-sicarsin
-sicariz
-sicarlar
-sicmak
-sik kafali
-siker
-sikerim
-sikeriz
-sikerler
-sikersin
-sikersiniz
-sikilmis
-sikimi
-sikis
-sikisgen
-sikismek
-sikmek
-siktigim
-siktim
-siktir
-sirfinti
-sirret
-sokak surtugu
-sokarim
-soktum
-soysuz
-slaleni
-supruntu
-surtuk
-sutu bozuk
-travesti
-ulan
-ulan kari
-uyuz
-vajina
-Ya cik git ya intihar et
-yakalarsam seni satacam
-yalaka
-yalama
-yal arim
-yamuk kadin
-yavsak
-yer cucesi
-yeteneksiz
-yosma
-sik kafali
-amın oğlu
-aminoğlu
-sikko
-at yarrağı
-yarrak kafalı
-yarrak ye
-yarrak surat
-sik kafa
-am biti
-suratını sikeyim
-sikiyim
-anan
-a.k
-a.q
-abaza
-abazan
-amcik
-agzini yuzunu sikerim
-Allah belani versin
-Allah cezani versin
-Piç
-Puşt
-Puşt
-Pezevenk
-serefsiz
-Sokarım
-şerefsiz
-şeyin başına vurdu
-Sıçar
-Sıçmak
-Sikiş
-Sikişgen
-Sikişmek
-Siktir
-şapşal
-şırfıntı
-şirret
-Sokak sürtüğü
-Soysuz
-Sülaleni
-Sümüklü
-Süprüntü
-Sürtük
-Sütü Bozuk
-Kürt
-KKK
-eşek
-eşşek
-eşşeoğlueşşek
-eşekoğlueşek
-ok
-siktir
-`;
-
-        // Performans: Çok büyük bir listeyi burada parçalayarak normalize etmek
-        // sayfa yüklemesini ciddi yavaşlatıyor.
-        // Bu yüzden ana filtreleme, alttaki bannedStemsRaw/bannedPhrasesRaw ile yapılıyor.
-        const bannedWords = [];
-        const bannedWordsNorm = [];
-
-        const sexualWords = [
-            // Açık içerik yerine daha genel NSFW/erotik çağrışımlar (graphic kelimeler eklemeden)
-            'seks',
-            'sex',
-            'porno',
-            'porn',
-            'pornografi',
-            'erotik',
-            'cinsel',
-            'cinsellik',
-            'fetiş',
-            'fetis',
-            'nsfw',
-            'xxx',
-            'anal',
-            'porno',
-            'penis',
-            'dildo',
-            'pussy',
-            'pipi',
-            'vajina',
-            'oral',
-            'sperm',
-            'sakso',
-            'masturbasyon',
-            'sevis',
-            'seviş',
-            'seviselim',
-        ];
-
-        // Listeyi tek tek eklemek çok uzun olacağı için,
-        // normalize edilmiş metinde yakalamaya yarayan "kök/desen" kontrolleri.
-        const bannedStemsRaw = [
-            'abaza',
-            'abazan',
-            'allah belani',
-            'allah cezani',
-            'amcik',
-            'amc',
-            'ambiti',
-            'amck',
-            'amik',
-            'amimi',
-            'amimizin',
-            'amını',
-            'amına',
-            'amında',
-            'amsalak',
-            'dalyarak',
-            'dasak',
-            'dassak',
-            'dassagi',
-            'dasagi',
-            'domalam',
-            'cük',
-            'dol',
-            'meme',
-            'oc',
-            'aq',
-            'aqq',
-            'oral',
-            'am biti',
-            'orospu',
-            'orosbu',
-            'orsp',
-            'orospu cocugu',
-            'pezevenk',
-            'puşt',
-            'pust',
-            'ibne',
-            'ipne',
-            'kaltak',
-            'kaltag',
-            'kahpe',
-            'kancik',
-            'kancig',
-            'serefsiz',
-            'salak',
-            'gerizekali',
-            'aptal',
-            'travesti',
-            'yarrak',
-            'yaraq',
-            'yrrk',
-            'yavsak',
-            'yarrami',
-            'göt',
-            'got',
-            'godo',
-            'godoş',
-            'gavat',
-            'pic',
-            'sik',
-            'sikis',
-            'sikisgen',
-            'sikici',
-            'sikik',
-            'sikmek',
-            'siktir',
-            'sktr',
-            'hasiktir',
-            'hassiktir',
-            'surtuk',
-            'taşak',
-            'taskak',
-            'tasak',
-            'tassak',
-            'tasagi',
-            'tasaga',
-            'yalaka',
-            'vagina',
-            'vajina',
-            'fahise',
-            'follos',
-            'fahişe',
-            'follos',
-            'kerane',
-            'kerhane',
-            'kevase',
-            'kavat',
-            'qavat',
-            'puşt',
-            'puştt',
-            'vajina',
-        ];
-
-        const bannedPhrasesRaw = [
-            'agzina veririm',
-            'agzini yuzunu sikerim',
-            'agzina sıcarım',
-            'allah belani versin',
-            'allah cezani versin',
-            'sik kafali',
-            'yarrak kafali',
-        ];
-
-        const bannedStemsNorm = bannedStemsRaw.map(normalizeForFilter).filter(Boolean);
-        const bannedPhrasesNorm = bannedPhrasesRaw.map(normalizeForFilter).filter(Boolean);
-
-        // txt'den gelen kelimeler Python tarafında normalize edilmiş "compact" stringler.
-        const bannedStemsFromTxt = (radioData && radioData.bannedStemsFromTxt) ? radioData.bannedStemsFromTxt : [];
-        const bannedStemsAll = Array.from(new Set([...(bannedStemsNorm || []), ...(bannedStemsFromTxt || [])]));
-
-        const bannedPhrasesCompact = (bannedPhrasesNorm || []).map(ph => String(ph || '').replace(/\s+/g, '')).filter(ph => ph.length >= 3);
-
-        const isProfane = (text) => {{
-            return false;
-        }};
-
-        const isSexual = (text) => {{
-            return false;
-        }};
-
-        let myLastSendAt = 0;
-        let mySendTimes = []; // son 60 saniyedeki gönderimler
-        let myLastNormText = '';
-        let myRepeatCount = 0;
-
         const updateActiveColors = () => {{
             if (!logEl) return;
             const nameEls = logEl.querySelectorAll('.chat-name[data-name]');
@@ -1643,8 +1093,6 @@ siktir
                 el.classList.toggle('chat-name-active', isActive);
                 el.classList.toggle('chat-name-inactive', !isActive);
             }});
-            // Aktif kullanıcı sayısını presence kayıtlarına göre güncelle
-            updateActiveCount();
         }};
 
         const pushMsg = (name, text) => {{
@@ -1844,23 +1292,17 @@ siktir
                     memberIdToName[key] = nm;
                     activeNameCount[nm] = (activeNameCount[nm] || 0) + 1;
                 }});
-                updateActiveCount();
                 updateActiveColors();
             }};
 
-            const refreshPresenceMembers = () => {{
-                try {{
-                    const g = channel.presence.get();
-                    if (g && typeof g.then === 'function') {{
-                        g.then(m => seedPresence(m)).catch(() => {{ }});
-                    }} else {{
-                        channel.presence.get((_, m) => seedPresence(m));
-                    }}
-                }} catch (_) {{ }}
-            }};
-
-            refreshPresenceMembers();
-            try {{ setInterval(refreshPresenceMembers, 8000); }} catch (_) {{ }}
+            try {{
+                const g = channel.presence.get();
+                if (g && typeof g.then === 'function') {{
+                    g.then(m => seedPresence(m)).catch(() => {{ }});
+                }} else {{
+                    channel.presence.get((_, m) => seedPresence(m));
+                }}
+            }} catch (_) {{ }}
 
             try {{
                 channel.presence.subscribe('enter', (p) => {{
@@ -1868,7 +1310,6 @@ siktir
                     const nm = extractNameFromPresence(p);
                     memberIdToName[key] = nm;
                     adjustActive(nm, +1);
-                    updateActiveCount();
                     updateActiveColors();
                 }});
             }} catch (_) {{ }}
@@ -1879,7 +1320,6 @@ siktir
                     const nm = memberIdToName[key];
                     if (nm) adjustActive(nm, -1);
                     delete memberIdToName[key];
-                    updateActiveCount();
                     updateActiveColors();
                 }});
             }} catch (_) {{ }}
@@ -1905,9 +1345,8 @@ siktir
             const name = (nameEl && nameEl.value ? nameEl.value.trim() : '') || 'Anonim';
             const text = (textEl && textEl.value ? textEl.value.trim() : '');
             if (!text) return;
-            // Tüm filtreler kapalı: herkes serbest mesaj atabilir.
 
-            // Mesaj onaylandı: metin kutusunu temizle
+            // Metin kutusunu hemen temizle
             if (textEl) textEl.value = '';
 
             // Kullanıcı adını presence'a da yansıt (aktiflik rengi doğru olsun)
@@ -2169,57 +1608,6 @@ siktir
         if (el) el.innerText = text;
     }}
 
-    // Otomatik skip: ses ilerlemiyorsa bir sonraki parçaya geç
-    // (Ama erken atlamayı engellemek için daha sıkı guard'lar var.)
-    let playbackOffsetSeconds = 0;
-    let lastProgressTime = 0;
-    let lastProgressAt = Date.now();
-    let lastStuckSkipAt = 0;
-    let trackStartAtMs = Date.now();
-    let trackStartTime = 0;
-    let currentTrackUrlGuard = '';
-    let lastAudioErrorAt = 0;
-    let trackEndAtMs = 0;
-    let programState = {{ key: null, playlist: [], index: 0 }};
-
-    audio.addEventListener('timeupdate', () => {{
-        try {{
-            const t = audio.currentTime;
-            if (typeof t === 'number' && t > lastProgressTime + 0.25) {{
-                lastProgressTime = t;
-                lastProgressAt = Date.now();
-            }}
-        }} catch (_) {{}}
-    }});
-
-    audio.addEventListener('playing', () => {{
-        try {{
-            lastProgressTime = audio.currentTime || 0;
-            lastProgressAt = Date.now();
-        }} catch (_) {{}}
-    }});
-
-    audio.addEventListener('error', () => {{
-        try {{
-            const err = audio.error;
-            lastAudioErrorAt = Date.now();
-            const msg =
-                err && err.message ? err.message :
-                (err ? String(err.code || err) : 'Ses yükleme hatası');
-            setStatus("SES YÜKLEME HATASI: " + msg);
-        }} catch (_) {{}}
-    }});
-
-    // Şarkı gerçekten bitince sıradakine geç.
-    audio.addEventListener('ended', () => {{
-        try {{
-            const n = nextTrackInProgram(true);
-            if (n && n.url) {{
-                setStatus(formatTitleFromUrl(n.url));
-            }}
-        }} catch (_) {{}}
-    }});
-
     // Her kullanıcıda aynı sırayı üretmek için: gün bazlı deterministik shuffle
     function hashStringToInt(str) {{
         // FNV-1a 32-bit hash
@@ -2252,21 +1640,6 @@ siktir
         return a;
     }}
 
-    function nextTrackInProgram(shouldPlay = true) {{
-        try {{
-            const pl = (programState && Array.isArray(programState.playlist)) ? programState.playlist : [];
-            if (!pl.length) return null;
-            programState.index = (programState.index + 1) % pl.length;
-            const tr = pl[programState.index];
-            if (tr && tr.url) {{
-                setSrcAndSeek(tr.url, 0, shouldPlay && !isMuted, tr.duration);
-            }}
-            return tr || null;
-        }} catch (_) {{
-            return null;
-        }}
-    }}
-
     function safePlay() {{
         try {{
             audio.muted = false;
@@ -2289,36 +1662,10 @@ siktir
         }}
     }}
 
-    function setSrcAndSeek(url, seekTime, shouldPlay, expectedDurationSec) {{
+    function setSrcAndSeek(url, seekTime, shouldPlay) {{
         audio.src = url;
-        // Yeni parçaya geçince "ilerleme yok" sayacını sıfırla.
-        currentTrackUrlGuard = url;
-        trackStartAtMs = Date.now();
-        trackStartTime = seekTime;
-        try {{
-            const dur = typeof expectedDurationSec === 'number' ? expectedDurationSec : NaN;
-            if (typeof dur === 'number' && isFinite(dur) && dur > 0) {{
-                const left = Math.max(0, dur - seekTime);
-                trackEndAtMs = trackStartAtMs + left * 1000;
-            }} else {{
-                trackEndAtMs = 0;
-            }}
-        }} catch (_) {{ trackEndAtMs = 0; }}
-        lastProgressAt = Date.now();
-        lastProgressTime = seekTime;
         const applySeek = () => {{
-            try {{
-                let target = seekTime;
-                const dur = audio && typeof audio.duration === 'number' ? audio.duration : NaN;
-                if (typeof dur === 'number' && isFinite(dur) && dur > 0) {{
-                    // duration güvenliyse clamp yap
-                    target = Math.min(target, Math.max(0, dur - 0.25));
-                }} else {{
-                    // duration henüz hazır değilse sona/ilerisine kaçıp bitmiş gibi gösterme.
-                    target = 0;
-                }}
-                audio.currentTime = target;
-            }} catch (_) {{ }}
+            try {{ audio.currentTime = seekTime; }} catch (_) {{ }}
             if (shouldPlay) safePlay();
         }};
 
@@ -2385,9 +1732,7 @@ siktir
         const dateStr = dateObj.getFullYear() + '-' +
             String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
             String(dateObj.getDate()).padStart(2, '0');
-        // Sıra tazeleme anahtarı: bunu değiştirince tüm kullanıcılar için yeni günlük sıra oluşur.
-        const shuffleVersion = 'v2';
-        const cacheKey = key + '|' + dateStr + '|' + shuffleVersion;
+        const cacheKey = key + '|' + dateStr;
 
         const dailyShuffledPlaylists = window.dailyShuffledPlaylists || {{}};
         window.dailyShuffledPlaylists = dailyShuffledPlaylists;
@@ -2398,26 +1743,21 @@ siktir
             dailyShuffledPlaylists[cacheKey] = playlist;
         }}
 
-        // Süre tablosuna göre seek yapmak yerine, şarkıları sırayla çal.
-        // Program saat değişince sadece playlist değişir.
-        const programChanged = (!programState.key || programState.key !== key);
-        if (programChanged) {{
-            programState.key = key;
-            programState.playlist = Array.isArray(playlist) ? playlist : [];
-            programState.index = 0;
-        }} else if (!programState.playlist || programState.playlist.length !== playlist.length) {{
-            // Gün değişimi vb. durumlarda günlük shuffle farklılaşabilir.
-            programState.playlist = Array.isArray(playlist) ? playlist : [];
-            if (programState.index >= programState.playlist.length) programState.index = 0;
-        }}
+        const totalDuration = playlist.reduce((a, b) => a + b.duration, 0);
+        const currentTimeInSeconds = Math.floor(Date.now() / 1000) % totalDuration;
 
-        const currentTrack = (programState.playlist && programState.playlist.length)
-            ? programState.playlist[programState.index]
-            : null;
-        const nextTrack = (programState.playlist && programState.playlist.length)
-            ? programState.playlist[(programState.index + 1) % programState.playlist.length]
-            : null;
-        const seekTime = 0;
+        let elapsed = 0;
+        let currentTrack = playlist[0];
+        let seekTime = 0;
+
+        for (let track of playlist) {{
+            if (currentTimeInSeconds >= elapsed && currentTimeInSeconds < elapsed + track.duration) {{
+                currentTrack = track;
+                seekTime = currentTimeInSeconds - elapsed;
+                break;
+            }}
+            elapsed += track.duration;
+        }}
 
         document.getElementById('display-category-name').innerText = name;
         const djText = (radioData.djs && radioData.djs[key]) ? radioData.djs[key] : 'DJ';
@@ -2528,9 +1868,7 @@ siktir
             if (diskImgEl.src !== nextSrc) diskImgEl.src = nextSrc;
         }}
         
-        let title = (currentTrack && currentTrack.url)
-            ? formatTitleFromUrl(currentTrack.url)
-            : "YAYIN YÜKLENİYOR";
+        let title = formatTitleFromUrl(currentTrack.url);
 
         document.getElementById('display-song-name').innerText = title;
 
@@ -2547,52 +1885,14 @@ siktir
             }}
         }}
 
-        // Program değiştiyse (veya ilk açılışta) yeni programın ilk parçasını başlat.
-        if (currentTrack && currentTrack.url) {{
-            if (programChanged || !audio.src || audio.src !== currentTrack.url) {{
-                setSrcAndSeek(currentTrack.url, 0, !isMuted, currentTrack.duration);
-            }}
+        // Playlist değiştiğinde (aynı URL denk gelse bile) mutlaka yeniden senkronla
+        if (keyChanged || audio.src !== currentTrack.url) {{
+            setSrcAndSeek(currentTrack.url, seekTime, !isMuted);
         }}
 
-        // Not: currentTime'ı her tick'te zorlamak bazı tarayıcılarda takılmaya sebep olabiliyor.
-        // Bu yüzden sadece parça değişince seek yapıyoruz.
-
-        // Şarkı takıldı / gerçekten ilerleme yoksa otomatik bir sonraki parçaya atla
-        try {{
-            const now = Date.now();
-            const stuckForMs = now - lastProgressAt;
-            const tNow = audio && typeof audio.currentTime === 'number' ? audio.currentTime : 0;
-            const timeLooksStuck = Math.abs(tNow - lastProgressTime) < 0.35;
-
-            const playingUrl = audio && audio.src ? audio.src : '';
-            const urlLooksSameTrack =
-                currentTrackUrlGuard && (playingUrl === currentTrackUrlGuard || playingUrl.indexOf(currentTrackUrlGuard) !== -1);
-
-            let hasBuffered = false;
-            try {{
-                hasBuffered = audio && audio.buffered && audio.buffered.length > 0;
-            }} catch (_) {{ hasBuffered = false; }}
-
-            const lowReady = audio && typeof audio.readyState === 'number' ? audio.readyState <= 1 : false;
-            const isPaused = !!(audio && audio.paused);
-            const shouldSkip =
-                (!isMuted) &&
-                urlLooksSameTrack &&
-                stuckForMs > 11000 &&
-                timeLooksStuck &&
-                nextTrack && nextTrack.url &&
-                (!hasBuffered) &&
-                (lowReady || isPaused) &&
-                (lastAudioErrorAt && (now - lastAudioErrorAt) < 60000);
-
-            if (shouldSkip && (now - lastStuckSkipAt) > 15000) {{
-                lastStuckSkipAt = now;
-                const skippedTo = nextTrackInProgram(true);
-                if (skippedTo && skippedTo.url) {{
-                    setStatus("OTOMATİK ATLA: " + formatTitleFromUrl(skippedTo.url));
-                }}
-            }}
-        }} catch (_) {{}}
+        if (Math.abs(audio.currentTime - seekTime) > 3) {{
+            audio.currentTime = seekTime;
+        }}
 
         document.querySelectorAll('.row-item').forEach(i => {{
             i.classList.toggle('active', h >= parseInt(i.dataset.start) && h < parseInt(i.dataset.end));
@@ -2697,4 +1997,3 @@ iframe { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: 
     unsafe_allow_html=True,
 )
 components.html(html_code, height=2000)
-
