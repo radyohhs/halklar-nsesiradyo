@@ -656,7 +656,37 @@ html_code = f"""
         .panel {{ padding: 2vh; display: flex; flex-direction: column; background: #000; height: 100%; }}
         .col-flow {{ flex: 20; border-right: 1px solid #111; overflow: hidden; display: flex; flex-direction: column; }}
         .col-player {{ flex: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
-        .col-chat {{ flex: 20; border-left: 1px solid #111; background: #050505; }}
+        .col-chat {{
+            flex: 20;
+            border-left: 1px solid #111;
+            background: #050505;
+            position: relative;
+            overflow: hidden;
+        }}
+        /* Chat arka planına yumuşak, blur'lı animasyon */
+        .col-chat::before {{
+            content: "";
+            position: absolute;
+            inset: -60px;
+            z-index: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(255, 69, 0, 0.18), rgba(0,0,0,0) 55%),
+                radial-gradient(circle at 75% 55%, rgba(0, 255, 120, 0.10), rgba(0,0,0,0) 55%),
+                radial-gradient(circle at 40% 90%, rgba(255, 255, 255, 0.05), rgba(0,0,0,0) 60%);
+            filter: blur(16px);
+            opacity: 0.9;
+            animation: chatBgShift 7s ease-in-out infinite alternate;
+        }}
+        .col-chat > * {{
+            position: relative;
+            z-index: 1;
+        }}
+        @keyframes chatBgShift {{
+            0% {{ transform: translate(0px, 0px) scale(1.02); opacity: 0.75; }}
+            50% {{ transform: translate(10px, -8px) scale(1.04); opacity: 0.95; }}
+            100% {{ transform: translate(-8px, 6px) scale(1.03); opacity: 0.85; }}
+        }}
 
         .flow-title {{
             padding: 1.1vh 1vh 0.8vh 1vh;
@@ -682,15 +712,15 @@ html_code = f"""
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 14px;
             padding: 1.2vh;
-            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.55);
+            background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.45);
         }}
         .chat-pinned {{
             padding: 0.9vh 1vh;
             border-radius: 12px;
             margin-bottom: 0.9vh;
-            background: rgba(255, 69, 0, 0.14);
-            border: 1px solid rgba(255, 69, 0, 0.26);
+            background: rgba(255, 69, 0, 0.12);
+            border: 1px solid rgba(255, 69, 0, 0.22);
             color: rgba(255,255,255,0.92);
             font-size: clamp(12px, 1.15vh, 14px);
             font-weight: 700;
@@ -708,8 +738,13 @@ html_code = f"""
             word-break: break-word;
             padding: 0.9vh 1vh;
             border-radius: 12px;
-            background: rgba(0,0,0,0.30);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.055);
+            animation: msgIn 420ms ease-out both;
+        }}
+        @keyframes msgIn {{
+            from {{ opacity: 0; transform: translateY(6px) scale(0.995); }}
+            to {{ opacity: 1; transform: translateY(0px) scale(1); }}
         }}
         .col-chat .chat-msg:last-child {{ margin-bottom: 0; }}
         .col-chat .chat-meta {{
@@ -718,9 +753,9 @@ html_code = f"""
             letter-spacing: 0.4px;
             margin-bottom: 0.35vh;
         }}
-        .chat-name-active {{ color: rgba(0, 255, 120, 0.95); font-weight: 800; }}
-        .chat-name-inactive {{ color: rgba(255, 80, 80, 0.95); font-weight: 800; }}
-        .chat-time {{ color: rgba(255,255,255,0.50); font-weight: 600; }}
+        .chat-name-active {{ color: rgba(0, 255, 120, 0.85); font-weight: 750; }}
+        .chat-name-inactive {{ color: rgba(255, 100, 100, 0.85); font-weight: 750; }}
+        .chat-time {{ color: rgba(255,255,255,0.52); font-weight: 600; }}
         .col-chat .chat-input {{ display: flex; gap: 0.8vh; }}
         .col-chat #chatName, .col-chat #chatText {{
             flex: 1;
