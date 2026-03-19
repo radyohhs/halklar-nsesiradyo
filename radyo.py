@@ -2336,9 +2336,11 @@ siktir
                 let target = seekTime;
                 const dur = audio && typeof audio.duration === 'number' ? audio.duration : NaN;
                 if (typeof dur === 'number' && isFinite(dur) && dur > 0) {{
-                    // Yanlış/eksik duration bilgisinden dolayı "süreden ileri seek" yapıp parçayı bitmiş gibi gösterebiliyor.
-                    // O yüzden clamping uyguluyoruz.
+                    // duration güvenliyse clamp yap
                     target = Math.min(target, Math.max(0, dur - 0.25));
+                }} else {{
+                    // duration henüz hazır değilse sona/ilerisine kaçıp bitmiş gibi gösterme.
+                    target = 0;
                 }}
                 audio.currentTime = target;
             }} catch (_) {{ }}
@@ -2571,16 +2573,8 @@ siktir
             setSrcAndSeek(currentTrack.url, seekTime, !isMuted);
         }}
 
-        if (audio.readyState >= 2 && Math.abs(audio.currentTime - seekTime) > 8) {{
-            try {{
-                let target = seekTime;
-                const dur = audio && typeof audio.duration === 'number' ? audio.duration : NaN;
-                if (typeof dur === 'number' && isFinite(dur) && dur > 0) {{
-                    target = Math.min(target, Math.max(0, dur - 0.25));
-                }}
-                audio.currentTime = target;
-            }} catch (_) {{}}
-        }}
+        // Not: currentTime'ı her tick'te zorlamak bazı tarayıcılarda takılmaya sebep olabiliyor.
+        // Bu yüzden sadece parça değişince seek yapıyoruz.
 
         // Şarkı takıldı / gerçekten ilerleme yoksa otomatik bir sonraki parçaya atla
         try {{
