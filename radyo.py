@@ -94,10 +94,10 @@ SS = [
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/yeni_turku_ozgurluk_bugdayinturkusu_adamuzik_yx5ew6v_dzq.mp3", "duration": 247},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_bir_mayis.mp3", "duration": 215},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_cav_bella.mp3", "duration": 165},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_defol_amerika.mp3", "duration": 145},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_kizildere.mp3", "duration": 215},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_hakliyiz_kazanacagiz.mp3", "duration": 265},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_daglara_gel.mp3", "duration": 240},
-    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_defol_amerika.mp3", "duration": 240},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_devrim_yuruyusumuz_suruyor.mp3", "duration": 240},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_dunya_haklari_kardestir_bu_memleket_bizim.mp3", "duration": 240},
     {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/grup_yorum_dusenlere.mp3", "duration": 240},
@@ -1608,6 +1608,39 @@ html_code = f"""
         if (el) el.innerText = text;
     }}
 
+    // Otomatik skip: ses ilerlemiyorsa bir sonraki parçaya geç
+    let playbackOffsetSeconds = 0;
+    let lastProgressTime = 0;
+    let lastProgressAt = Date.now();
+    let lastStuckSkipAt = 0;
+
+    audio.addEventListener('timeupdate', () => {{
+        try {{
+            const t = audio.currentTime;
+            if (typeof t === 'number' && t > lastProgressTime + 0.25) {{
+                lastProgressTime = t;
+                lastProgressAt = Date.now();
+            }}
+        }} catch (_) {{}}
+    }});
+
+    audio.addEventListener('playing', () => {{
+        try {{
+            lastProgressTime = audio.currentTime || 0;
+            lastProgressAt = Date.now();
+        }} catch (_) {{}}
+    }});
+
+    audio.addEventListener('error', () => {{
+        try {{
+            const err = audio.error;
+            const msg =
+                err && err.message ? err.message :
+                (err ? String(err.code || err) : 'Ses yükleme hatası');
+            setStatus("SES YÜKLEME HATASI: " + msg);
+        }} catch (_) {{}}
+    }});
+
     // Her kullanıcıda aynı sırayı üretmek için: gün bazlı deterministik shuffle
     function hashStringToInt(str) {{
         // FNV-1a 32-bit hash
@@ -1744,16 +1777,21 @@ html_code = f"""
         }}
 
         const totalDuration = playlist.reduce((a, b) => a + b.duration, 0);
-        const currentTimeInSeconds = Math.floor(Date.now() / 1000) % totalDuration;
+        const currentTimeInSeconds = (Math.floor(Date.now() / 1000) + playbackOffsetSeconds) % totalDuration;
 
         let elapsed = 0;
         let currentTrack = playlist[0];
+        let currentTrackIndex = 0;
         let seekTime = 0;
+        let nextTrack = playlist.length > 1 ? playlist[1] : playlist[0];
 
-        for (let track of playlist) {{
+        for (let idx = 0; idx < playlist.length; idx++) {{
+            const track = playlist[idx];
             if (currentTimeInSeconds >= elapsed && currentTimeInSeconds < elapsed + track.duration) {{
                 currentTrack = track;
+                currentTrackIndex = idx;
                 seekTime = currentTimeInSeconds - elapsed;
+                nextTrack = playlist[(idx + 1) % playlist.length] || playlist[0];
                 break;
             }}
             elapsed += track.duration;
@@ -1893,6 +1931,22 @@ html_code = f"""
         if (Math.abs(audio.currentTime - seekTime) > 3) {{
             audio.currentTime = seekTime;
         }}
+
+        // Şarkı takıldı / ilerleme yoksa otomatik bir sonraki parçaya atla
+        try {{
+            const now = Date.now();
+            const stuckForMs = now - lastProgressAt;
+            const tNow = audio && typeof audio.currentTime === 'number' ? audio.currentTime : 0;
+            const timeLooksStuck = Math.abs(tNow - lastProgressTime) < 0.35;
+            const shouldSkip = (!isMuted) && stuckForMs > 9000 && timeLooksStuck && nextTrack && nextTrack.url;
+
+            if (shouldSkip && (now - lastStuckSkipAt) > 15000) {{
+                lastStuckSkipAt = now;
+                playbackOffsetSeconds += Math.ceil(currentTrack.duration) + 2;
+                setStatus("OTOMATİK ATLA: " + formatTitleFromUrl(nextTrack.url));
+                setSrcAndSeek(nextTrack.url, 0, true);
+            }}
+        }} catch (_) {{}}
 
         document.querySelectorAll('.row-item').forEach(i => {{
             i.classList.toggle('active', h >= parseInt(i.dataset.start) && h < parseInt(i.dataset.end));
