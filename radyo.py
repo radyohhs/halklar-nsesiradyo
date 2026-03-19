@@ -968,10 +968,11 @@ html_code = f"""
                 const data = {{ name: normalizeName(nm) }};
                 try {{
                     if (channel && channel.presence) {{
-                        if (typeof channel.presence.update === 'function') {{
-                            channel.presence.update(data);
-                        }} else if (typeof channel.presence.enter === 'function') {{
+                        // Presence'a ilk kez giriş için mutlaka enter kullan (update bazen mevcut presence bekleyebilir)
+                        if (typeof channel.presence.enter === 'function') {{
                             channel.presence.enter(data);
+                        }} else if (typeof channel.presence.update === 'function') {{
+                            channel.presence.update(data);
                         }}
                     }}
                 }} catch (_) {{ }}
@@ -1090,8 +1091,11 @@ html_code = f"""
             // Kullanıcı adını presence'a da yansıt (aktiflik rengi doğru olsun)
             try {{
                 if (channel && channel.presence) {{
+                    const data = {{ name: normalizeName(name) }};
                     if (typeof channel.presence.update === 'function') {{
-                        channel.presence.update({{ name: normalizeName(name) }});
+                        channel.presence.update(data);
+                    }} else if (typeof channel.presence.enter === 'function') {{
+                        channel.presence.enter(data);
                     }}
                 }}
             }} catch (_) {{ }}
