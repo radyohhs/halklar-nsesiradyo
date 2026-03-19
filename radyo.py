@@ -1103,39 +1103,424 @@ html_code = f"""
             }}
         }};
 
-        const bannedWords = [
-            // Starter küfür listesi (istersen buraya ekleme/çıkarma yaparsin)
-            // Not: hedef gruplara yönelik aşağılayıcı kelimeleri özellikle eklemiyorum.
-            'amk',
+        // Küfür/argo engeli kelimeleri.
+        // Not: Bu filtreler client-side olduğu için %100 güvenlik değil; ama pratikte çoğu mesajı engeller.
+        const bannedWordsRaw = `
+amk
+orospu
+sik
+yarrak
+göt
+got
+amcik
+serefsiz
+siktir
+anan
+ananı
+ananin
+pic
+sikeyim
+sikerim
+sikiyim
+sikmek
+ibne
+agzina veririm
+agzini yuzunu sikerim
+allah belani versin
+allah cezani versin
+allahini
+am biti
+ambiti
+amcik
+amimi
+amimizi
+amina
+amina koyarim
+amini
+amini sikerim
+aminizi
+anani
+anan avradini
+avradini
+avag
+arsiz
+asil
+aşağılık
+asil
+asagilik
+asagilik kadin
+ateşin başına vurdu
+atesin basina vurdu
+avrat
+avradini
+ayağa düşürürüm
+ayaga dusururum
+azgin
+bacaklarini kirarim
+bacini
+beyinsiz
+bogazini kesecem
+bogazini
+bok
+cahil
+camis
+camiz
+cerceveni dagitirim
+cirkin
+curuk kadin
+curumussun
+daga kaldiririm
+dancuk
+dang
+dal
+davar
+deli
+dillerim
+dingil
+dinsiz
+domuz
+dumbugun kizi
+dumbuk
+eksik etek
+elinde kalirsin
+essolesek
+etigine ettigimin karisi
+eteğine ettiğimin karısı
+etigine ettigimin karisi
+façanı aşağı alırım
+facani asagi alirim
+fahise
+fettan
+gavur
+gavurun dolu
+geber
+genelev
+genelev kadini
+genelevlere dusesin
+geri zekali
+gerizekali
+gogus
+gorgusuz
+got oglani
+gotoglani
+got deligini
+gotdeligini
+gotume
+gotumu
+gotumuzu
+gotune
+gotunu
+gotunu keserim
+gotunu sikerim
+gotunuzu
+götünden sikerim
+hayvan
+hiyar
+kahpe
+kaltak
+kancik
+kani bozuk
+karnini deşerim
+karnini deserim
+kavatin kizi
+kiz
+kic
+kimden peydahladin
+kizismis
+komaya sokarim
+kopek
+malafat
+mamis
+mankafa
+manyak
+mezarina tukurmem
+mikrop
+o.c
+oç
+oc
+okuz
+oro
+orospu cocugu
+oro.?
+oç
+o.ç.
+Orospu cocugu
+p.k.k
+PKK
+DHKPC
+pandik
+pavyon karisi
+pavyona mi dusecen
+pezevenk
+pic
+piç
+pipi
+pisirik
+pislik
+popo
+psikopat
+pust
+ sacakli
+sakal
+sapik
+serefsiz
+seyin basina vurdu
+sicar
+sicarsin
+sicariz
+sicarlar
+sicmak
+sik kafali
+siker
+sikerim
+sikeriz
+sikerler
+sikersin
+sikersiniz
+sikilmis
+sikimi
+sikis
+sikisgen
+sikismek
+sikmek
+siktigim
+siktim
+siktir
+sirfinti
+sirret
+sokak surtugu
+sokarim
+soktum
+soysuz
+slaleni
+supruntu
+surtuk
+sutu bozuk
+travesti
+ulan
+ulan kari
+uyuz
+vajina
+Ya cik git ya intihar et
+yakalarsam seni satacam
+yalaka
+yalama
+yal arim
+yamuk kadin
+yavsak
+yer cucesi
+yeteneksiz
+yosma
+sik kafali
+amın oğlu
+aminoğlu
+sikko
+at yarrağı
+yarrak kafalı
+yarrak ye
+yarrak surat
+sik kafa
+am biti
+suratını sikeyim
+sikiyim
+anan
+a.k
+a.q
+abaza
+abazan
+amcik
+agzini yuzunu sikerim
+Allah belani versin
+Allah cezani versin
+Piç
+Puşt
+Puşt
+Pezevenk
+serefsiz
+Sokarım
+şerefsiz
+şeyin başına vurdu
+Sıçar
+Sıçmak
+Sikiş
+Sikişgen
+Sikişmek
+Siktir
+şapşal
+şırfıntı
+şirret
+Sokak sürtüğü
+Soysuz
+Sülaleni
+Sümüklü
+Süprüntü
+Sürtük
+Sütü Bozuk
+Kürt
+KKK
+eşek
+eşşek
+eşşeoğlueşşek
+eşekoğlueşek
+ok
+siktir
+`;
+
+        const bannedWords = bannedWordsRaw
+            .split('\n')
+            .map(s => s.trim())
+            .filter(Boolean);
+        const bannedWordsNorm = bannedWords
+            .map(normalizeForFilter)
+            .filter(Boolean);
+
+        const sexualWords = [
+            // Açık içerik yerine daha genel NSFW/erotik çağrışımlar (graphic kelimeler eklemeden)
+            'seks',
+            'sex',
+            'porno',
+            'porn',
+            'pornografi',
+            'erotik',
+            'cinsel',
+            'cinsellik',
+            'fetiş',
+            'fetis',
+            'nsfw',
+            'xxx',
+            'anal',
+            'porno',
+            'penis',
+            'dildo',
+            'pussy',
+            'pipi',
+            'vajina',
+            'oral',
+            'sperm',
+            'sakso',
+            'masturbasyon',
+            'sevis',
+            'seviş',
+            'seviselim',
+        ];
+
+        // Listeyi tek tek eklemek çok uzun olacağı için,
+        // normalize edilmiş metinde yakalamaya yarayan "kök/desen" kontrolleri.
+        const bannedStemsRaw = [
+            'abaza',
+            'abazan',
+            'allah belani',
+            'allah cezani',
+            'amcik',
+            'amc',
+            'ambiti',
+            'amck',
+            'amik',
+            'amimi',
+            'amimizin',
+            'amını',
+            'amına',
+            'amında',
+            'amsalak',
+            'dalyarak',
+            'dasak',
+            'dassak',
+            'dassagi',
+            'dasagi',
+            'domalam',
+            'cük',
+            'dol',
+            'meme',
+            'oc',
+            'aq',
+            'aqq',
+            'oral',
+            'am biti',
             'orospu',
-            'sik',
+            'orosbu',
+            'orsp',
+            'orospu cocugu',
+            'pezevenk',
+            'puşt',
+            'pust',
+            'ibne',
+            'ipne',
+            'kaltak',
+            'kaltag',
+            'kahpe',
+            'kancik',
+            'kancig',
+            'serefsiz',
+            'salak',
+            'gerizekali',
+            'aptal',
+            'travesti',
             'yarrak',
+            'yaraq',
+            'yrrk',
+            'yavsak',
+            'yarrami',
             'göt',
             'got',
-            'amcik',
-            'serefsiz',
-            'siktir',
-            'anan',
-            'ananı',
-            'ananin',
+            'godo',
+            'godoş',
+            'gavat',
             'pic',
-            'sikeyim',
-            'sikerim',
-            'sikiyim',
+            'sik',
+            'sikis',
+            'sikisgen',
+            'sikici',
+            'sikik',
             'sikmek',
+            'siktir',
+            'sktr',
+            'hasiktir',
+            'hassiktir',
+            'surtuk',
+            'taşak',
+            'taskak',
+            'tasak',
+            'tassak',
+            'tasagi',
+            'tasaga',
+            'yalaka',
+            'vagina',
+            'vajina',
+            'fahise',
+            'follos',
+            'fahişe',
+            'follos',
+            'kerane',
+            'kerhane',
+            'kevase',
+            'kavat',
+            'qavat',
+            'puşt',
+            'puştt',
+            'vajina',
         ];
+
+        const bannedPhrasesRaw = [
+            'agzina veririm',
+            'agzini yuzunu sikerim',
+            'agzina sıcarım',
+            'allah belani versin',
+            'allah cezani versin',
+            'sik kafali',
+            'yarrak kafali',
+        ];
+
+        const bannedStemsNorm = bannedStemsRaw.map(normalizeForFilter).filter(Boolean);
+        const bannedPhrasesNorm = bannedPhrasesRaw.map(normalizeForFilter).filter(Boolean);
 
         const isProfane = (text) => {{
             const t = normalizeForFilter(text);
             if (!t) return false;
             const tCompact = t.replace(/\\s+/g, '');
+            const tokens = t.split(/\\s+/).filter(Boolean);
 
-            for (const w of bannedWords) {{
-                const nw = normalizeForFilter(w);
-                if (!nw) continue;
-
-                // Kelime bazlı kontrol (daha az false-positive)
-                const tokens = t.split(/\\s+/);
+            for (const nw of bannedWordsNorm) {{
+                // Kelime bazlı kontrol
                 if (tokens.includes(nw)) return true;
 
                 // Bozma/arasına boşluk koyma: "a m k" -> "amk"
@@ -1143,6 +1528,45 @@ html_code = f"""
                 if (nwCompact.length >= 3 && tCompact.includes(nwCompact)) return true;
             }}
 
+            // Kök/desen kontrolü (tek tek kelime eklemeden yakalama)
+            for (const stem of bannedStemsNorm) {{
+                if (!stem) continue;
+                if (stem.length <= 3) {{
+                    // Kısa köklerde false-positive azaltmak için token sınırı uygula
+                    for (const tok of tokens) {{
+                        if (tok === stem) return true;
+                        if (tok.startsWith(stem) && tok.length > stem.length) return true;
+                    }}
+                }} else {{
+                    if (tokens.includes(stem)) return true;
+                    if (tCompact.includes(stem)) return true;
+                }}
+            }}
+
+            for (const ph of bannedPhrasesNorm) {{
+                if (ph && ph.length >= 3 && tCompact.includes(ph)) return true;
+            }}
+
+            return false;
+        }};
+
+        const isSexual = (text) => {{
+            const t = normalizeForFilter(text);
+            if (!t) return false;
+            const tokens = t.split(/\\s+/).filter(Boolean);
+            const tCompact = t.replace(/\\s+/g, '');
+
+            for (const w of sexualWords) {{
+                const nw = normalizeForFilter(w);
+                if (!nw) continue;
+
+                // Kelime bazlı
+                if (tokens.includes(nw)) return true;
+
+                // Boşluksuz yakalama: "seksxxx" / "porno123" gibi
+                const nwCompact = nw.replace(/\\s+/g, '');
+                if (nwCompact.length >= 3 && tCompact.includes(nwCompact)) return true;
+            }}
             return false;
         }};
 
@@ -1166,7 +1590,7 @@ html_code = f"""
             if (!logEl) return;
             // Gelen mesajlarda küfür varsa ekrana basma
             try {{
-                if (isProfane(text)) return;
+                if (isProfane(text) || isSexual(text)) return;
             }} catch (e) {{}}
             const displayName = normalizeName(name);
             const wrap = document.createElement('div');
@@ -1418,8 +1842,8 @@ html_code = f"""
             if (!text) return;
             // Küfür kontrolü
             try {{
-                if (isProfane(text)) {{
-                    if (statusEl) statusEl.textContent = "Küfür/spam tespit edildi. Mesaj engellendi.";
+                if (isProfane(text) || isSexual(text)) {{
+                    if (statusEl) statusEl.textContent = "Uygunsuz içerik tespit edildi. Mesaj engellendi.";
                     return;
                 }}
             }} catch (e) {{}}
