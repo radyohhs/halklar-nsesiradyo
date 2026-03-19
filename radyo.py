@@ -512,6 +512,9 @@ html_code = f"""
             letter-spacing: 0.4px;
             margin-bottom: 0.35vh;
         }}
+        .chat-name-active {{ color: rgba(0, 255, 120, 0.95); font-weight: 800; }}
+        .chat-name-inactive {{ color: rgba(255, 80, 80, 0.95); font-weight: 800; }}
+        .chat-time {{ color: rgba(255,255,255,0.50); font-weight: 600; }}
         .col-chat .chat-input {{ display: flex; gap: 0.8vh; }}
         .col-chat #chatName, .col-chat #chatText {{
             flex: 1;
@@ -828,13 +831,54 @@ html_code = f"""
         const sendEl = document.getElementById('chatSend');
         const statusEl = document.getElementById('chatStatus');
 
+        // Presence'a göre aktiflik rengi:
+        // Ably tarafında sohbet sayfası açık olanlar presence "enter" olur, kapanınca "leave" gelir.
+        const memberIdToName = {{}};
+        const activeNameCount = {{}};
+
+        const normalizeName = (n) => {{
+            const s = (n || '').toString().trim();
+            return s || 'Anonim';
+        }};
+
+        const adjustActive = (name, delta) => {{
+            const nn = normalizeName(name);
+            activeNameCount[nn] = (activeNameCount[nn] || 0) + delta;
+            if (activeNameCount[nn] <= 0) delete activeNameCount[nn];
+        }};
+
+        const updateActiveColors = () => {{
+            if (!logEl) return;
+            const nameEls = logEl.querySelectorAll('.chat-name[data-name]');
+            nameEls.forEach(el => {{
+                const n = el.getAttribute('data-name') || '';
+                const isActive = !!activeNameCount[normalizeName(n)];
+                el.classList.toggle('chat-name-active', isActive);
+                el.classList.toggle('chat-name-inactive', !isActive);
+            }});
+        }};
+
         const pushMsg = (name, text) => {{
             if (!logEl) return;
+            const displayName = normalizeName(name);
             const wrap = document.createElement('div');
             wrap.className = 'chat-msg';
             const meta = document.createElement('div');
             meta.className = 'chat-meta';
-            meta.textContent = (name || 'Anonim') + ' • ' + new Date().toLocaleTimeString();
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'chat-name';
+            nameSpan.setAttribute('data-name', displayName);
+            nameSpan.textContent = displayName;
+
+            // Presence durumuna göre renk
+            nameSpan.classList.add(activeNameCount[displayName] ? 'chat-name-active' : 'chat-name-inactive');
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'chat-time';
+            timeSpan.textContent = ' • ' + new Date().toLocaleTimeString();
+
+            meta.appendChild(nameSpan);
+            meta.appendChild(timeSpan);
             const body = document.createElement('div');
             body.textContent = text || '';
             wrap.appendChild(meta);
@@ -842,6 +886,8 @@ html_code = f"""
             logEl.appendChild(wrap);
             while (logEl.children.length > 40) logEl.removeChild(logEl.firstChild);
             logEl.scrollTop = logEl.scrollHeight;
+
+            updateActiveColors();
         }};
 
         if (!radioData.ablyEnabled) {{
@@ -858,8 +904,16 @@ html_code = f"""
             return;
         }}
 
+        let myClientId = null;
+        try {{ myClientId = localStorage.getItem('radyo-chat-client-id'); }} catch (_) {{ }}
+        if (!myClientId) {{
+            myClientId = 'radyo-' + Math.random().toString(36).slice(2);
+            try {{ localStorage.setItem('radyo-chat-client-id', myClientId); }} catch (_) {{ }}
+        }}
+
         const realtime = new Ably.Realtime({{
-            token: radioData.ablyToken
+            token: radioData.ablyToken,
+            clientId: myClientId
         }});
         const channelName = radioData.ablyChannel || 'radyo-chat';
         const channel = realtime.channels.get(channelName);
@@ -882,6 +936,95 @@ html_code = f"""
                 setStatus("Chat attach hatası: " + (err.message || String(err)));
                 if (sendEl) sendEl.disabled = true;
             }}
+
+            // Presence setup
+            const memberKeyFromPresence = (p) => {{
+                const c = p && (p.clientId || p.connectionId || p.connection?.id) ? (p.clientId || p.connectionId || (p.connection && p.connection.id)) : null;
+                if (c) return String(c);
+                // fallback: data ile eşleştirme yapmaya çalışma; en azından ismi normalize edebilmek için data.name kullan
+                return String((p && p.id) || (p && p.presenceId) || 'unknown');
+            }};
+
+            const extractNameFromPresence = (p) => {{
+                const nm =
+                    p && p.data && p.data.name ? p.data.name :
+                    p && p.data ? p.data :
+                    p && p.state && p.state.name ? p.state.name :
+                    null;
+                return normalizeName(nm);
+            }};
+
+            const setMyPresenceName = (nm) => {{
+                const data = {{ name: normalizeName(nm) }};
+                try {{
+                    if (channel && channel.presence) {{
+                        if (typeof channel.presence.update === 'function') {{
+                            channel.presence.update(data);
+                        }} else if (typeof channel.presence.enter === 'function') {{
+                            channel.presence.enter(data);
+                        }}
+                    }}
+                }} catch (_) {{ }}
+            }};
+
+            // Sayfa açılınca presence'a gir
+            setMyPresenceName((nameEl && nameEl.value ? nameEl.value.trim() : '') || 'Anonim');
+
+            // Mevcut presence'i çek
+            const seedPresence = (members) => {{
+                // temizle
+                for (const k in activeNameCount) delete activeNameCount[k];
+                for (const k in memberIdToName) delete memberIdToName[k];
+
+                const list = Array.isArray(members) ? members : (members ? (Object.values(members) || []) : []);
+                list.forEach(p => {{
+                    const key = memberKeyFromPresence(p);
+                    const nm = extractNameFromPresence(p);
+                    memberIdToName[key] = nm;
+                    activeNameCount[nm] = (activeNameCount[nm] || 0) + 1;
+                }});
+                updateActiveColors();
+            }};
+
+            try {{
+                const g = channel.presence.get();
+                if (g && typeof g.then === 'function') {{
+                    g.then(m => seedPresence(m)).catch(() => {{ }});
+                }} else {{
+                    channel.presence.get((_, m) => seedPresence(m));
+                }}
+            }} catch (_) {{ }}
+
+            try {{
+                channel.presence.subscribe('enter', (p) => {{
+                    const key = memberKeyFromPresence(p);
+                    const nm = extractNameFromPresence(p);
+                    memberIdToName[key] = nm;
+                    adjustActive(nm, +1);
+                    updateActiveColors();
+                }});
+            }} catch (_) {{ }}
+
+            try {{
+                channel.presence.subscribe('leave', (p) => {{
+                    const key = memberKeyFromPresence(p);
+                    const nm = memberIdToName[key];
+                    if (nm) adjustActive(nm, -1);
+                    delete memberIdToName[key];
+                    updateActiveColors();
+                }});
+            }} catch (_) {{ }}
+
+            // Sayfadan çıkarken presence bırak (tarayıcı kapanışında opsiyonel)
+            try {{
+                window.addEventListener('beforeunload', () => {{
+                    try {{
+                        if (channel && channel.presence && typeof channel.presence.leave === 'function') {{
+                            channel.presence.leave();
+                        }}
+                    }} catch (_) {{ }}
+                }});
+            }} catch (_) {{ }}
         }});
 
         channel.subscribe('msg', (m) => {{
@@ -897,6 +1040,15 @@ html_code = f"""
             // Önce ekrana yaz (kullanıcı kendi mesajını hemen görsün)
             pushMsg(name, text);
             if (textEl) textEl.value = '';
+
+            // Kullanıcı adını presence'a da yansıt (aktiflik rengi doğru olsun)
+            try {{
+                if (channel && channel.presence) {{
+                    if (typeof channel.presence.update === 'function') {{
+                        channel.presence.update({{ name: normalizeName(name) }});
+                    }}
+                }}
+            }} catch (_) {{ }}
 
             // Sonra Ably üzerinden yayınla, hata olursa durum satırına yaz
             channel.publish('msg', {{ name, text }}, (err) => {{
