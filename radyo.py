@@ -354,7 +354,8 @@ else:
                 # Token'ın bu kanala erişmesi için capability'i açıkça belirt.
                 # Yapı: { "channel-name": ["publish","subscribe"] }
                 "capability": json.dumps(
-                    {ably_channel: ["publish", "subscribe"]}
+                    # presence için Ably Presence opsiyonu gerekli
+                    {ably_channel: ["publish", "subscribe", "presence"]}
                 ),
             }
         )
@@ -831,6 +832,7 @@ html_code = f"""
         const sendEl = document.getElementById('chatSend');
         const statusEl = document.getElementById('chatStatus');
 
+        try {{
         // Presence'a göre aktiflik rengi:
         // Ably tarafında sohbet sayfası açık olanlar presence "enter" olur, kapanınca "leave" gelir.
         const memberIdToName = {{}};
@@ -1084,6 +1086,12 @@ html_code = f"""
         if (textEl) textEl.addEventListener('keydown', (e) => {{ if (e.key === 'Enter') send(); }});
 
         pushMsg('Sistem', 'Canlı sohbete hoş geldin.');
+        }} catch (e) {{
+            // JS hatası audio'nun çalışmasını da engellemesin diye chat içini güvenli kapatıyoruz.
+            try {{
+                if (statusEl) statusEl.textContent = "Chat hata: " + (e && e.message ? e.message : String(e));
+            }} catch (_) {{ }}
+        }}
     }})();
 
     // Genel şarkı başlığı biçimlendirici
@@ -1391,6 +1399,23 @@ html_code = f"""
         sync();
         if (!isMuted) safePlay();
     }};
+
+    // Mobilde autoplay engelli olabiliyor: ilk dokunuşta sesi açmayı dene.
+    // Kullanıcı etkileşimi geldiğinde sadece bir kere çalışır.
+    (function autoUnmuteOnce() {{
+        const btn = document.getElementById('control-button');
+        const tryUnmute = () => {{
+            if (!isMuted) return;
+            isMuted = false;
+            audio.muted = false;
+            audio.volume = 1.0;
+            if (btn) btn.innerText = "SESİ KAPAT";
+            sync();
+            safePlay();
+        }};
+        window.addEventListener('touchstart', tryUnmute, {{ once: true, passive: true }});
+        window.addEventListener('click', tryUnmute, {{ once: true }});
+    }})();
 
     setInterval(sync, 1000);
     sync();
