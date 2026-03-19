@@ -904,16 +904,8 @@ html_code = f"""
             return;
         }}
 
-        let myClientId = null;
-        try {{ myClientId = localStorage.getItem('radyo-chat-client-id'); }} catch (_) {{ }}
-        if (!myClientId) {{
-            myClientId = 'radyo-' + Math.random().toString(36).slice(2);
-            try {{ localStorage.setItem('radyo-chat-client-id', myClientId); }} catch (_) {{ }}
-        }}
-
         const realtime = new Ably.Realtime({{
             token: radioData.ablyToken,
-            clientId: myClientId
         }});
         const channelName = radioData.ablyChannel || 'radyo-chat';
         const channel = realtime.channels.get(channelName);
@@ -939,9 +931,17 @@ html_code = f"""
 
             // Presence setup
             const memberKeyFromPresence = (p) => {{
-                const c = p && (p.clientId || p.connectionId || p.connection?.id) ? (p.clientId || p.connectionId || (p.connection && p.connection.id)) : null;
+                // Ably'de token clientId hepsinde aynı olabilir. Bu yüzden anahtar olarak connectionId/connection.id kullan.
+                const conn =
+                    p && (p.connectionId || (p.connection && p.connection.id) || p.connection?.id)
+                        ? (p.connectionId || (p.connection && p.connection.id) || p.connection?.id)
+                        : null;
+                if (conn) return String(conn);
+
+                // En azından çakışma olmasın diye clientId'yi en son fallback yap.
+                const c = p && p.clientId ? p.clientId : null;
                 if (c) return String(c);
-                // fallback: data ile eşleştirme yapmaya çalışma; en azından ismi normalize edebilmek için data.name kullan
+
                 return String((p && p.id) || (p && p.presenceId) || 'unknown');
             }};
 
