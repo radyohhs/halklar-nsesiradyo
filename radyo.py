@@ -2241,6 +2241,7 @@ siktir
     let currentTrackUrlGuard = '';
     let lastAudioErrorAt = 0;
     let trackEndAtMs = 0;
+    let programState = {{ key: null, playlist: [], index: 0 }};
 
     audio.addEventListener('timeupdate', () => {{
         try {{
@@ -2267,6 +2268,16 @@ siktir
                 err && err.message ? err.message :
                 (err ? String(err.code || err) : 'Ses yükleme hatası');
             setStatus("SES YÜKLEME HATASI: " + msg);
+        }} catch (_) {{}}
+    }});
+
+    // Şarkı gerçekten bitince sıradakine geç.
+    audio.addEventListener('ended', () => {{
+        try {{
+            const n = nextTrackInProgram(true);
+            if (n && n.url) {{
+                setStatus(formatTitleFromUrl(n.url));
+            }}
         }} catch (_) {{}}
     }});
 
@@ -2300,6 +2311,21 @@ siktir
             a[j] = tmp;
         }}
         return a;
+    }}
+
+    function nextTrackInProgram(shouldPlay = true) {{
+        try {{
+            const pl = (programState && Array.isArray(programState.playlist)) ? programState.playlist : [];
+            if (!pl.length) return null;
+            programState.index = (programState.index + 1) % pl.length;
+            const tr = pl[programState.index];
+            if (tr && tr.url) {{
+                setSrcAndSeek(tr.url, 0, shouldPlay && !isMuted, tr.duration);
+            }}
+            return tr || null;
+        }} catch (_) {{
+            return null;
+        }}
     }}
 
     function safePlay() {{
@@ -2431,26 +2457,26 @@ siktir
             dailyShuffledPlaylists[cacheKey] = playlist;
         }}
 
-        const totalDuration = playlist.reduce((a, b) => a + b.duration, 0);
-        const currentTimeInSeconds = (Math.floor(Date.now() / 1000) + playbackOffsetSeconds) % totalDuration;
-
-        let elapsed = 0;
-        let currentTrack = playlist[0];
-        let currentTrackIndex = 0;
-        let seekTime = 0;
-        let nextTrack = playlist.length > 1 ? playlist[1] : playlist[0];
-
-        for (let idx = 0; idx < playlist.length; idx++) {{
-            const track = playlist[idx];
-            if (currentTimeInSeconds >= elapsed && currentTimeInSeconds < elapsed + track.duration) {{
-                currentTrack = track;
-                currentTrackIndex = idx;
-                seekTime = currentTimeInSeconds - elapsed;
-                nextTrack = playlist[(idx + 1) % playlist.length] || playlist[0];
-                break;
-            }}
-            elapsed += track.duration;
+        // Süre tablosuna göre seek yapmak yerine, şarkıları sırayla çal.
+        // Program saat değişince sadece playlist değişir.
+        const programChanged = (!programState.key || programState.key !== key);
+        if (programChanged) {{
+            programState.key = key;
+            programState.playlist = Array.isArray(playlist) ? playlist : [];
+            programState.index = 0;
+        }} else if (!programState.playlist || programState.playlist.length !== playlist.length) {{
+            // Gün değişimi vb. durumlarda günlük shuffle farklılaşabilir.
+            programState.playlist = Array.isArray(playlist) ? playlist : [];
+            if (programState.index >= programState.playlist.length) programState.index = 0;
         }}
+
+        const currentTrack = (programState.playlist && programState.playlist.length)
+            ? programState.playlist[programState.index]
+            : null;
+        const nextTrack = (programState.playlist && programState.playlist.length)
+            ? programState.playlist[(programState.index + 1) % programState.playlist.length]
+            : null;
+        const seekTime = 0;
 
         document.getElementById('display-category-name').innerText = name;
         const djText = (radioData.djs && radioData.djs[key]) ? radioData.djs[key] : 'DJ';
@@ -2561,7 +2587,9 @@ siktir
             if (diskImgEl.src !== nextSrc) diskImgEl.src = nextSrc;
         }}
         
-        let title = formatTitleFromUrl(currentTrack.url);
+        let title = (currentTrack && currentTrack.url)
+            ? formatTitleFromUrl(currentTrack.url)
+            : "YAYIN YÜKLENİYOR";
 
         document.getElementById('display-song-name').innerText = title;
 
@@ -2578,32 +2606,10 @@ siktir
             }}
         }}
 
-        // Playlist değiştiğinde hedef track'e geç (erken geçişi engellemek için geciktirme var)
-        if (audio.src !== currentTrack.url) {{
-            const canSwitchNow = () => {{
-                try {{
-                    const dur = (audio && typeof audio.duration === 'number') ? audio.duration : NaN;
-                    const cur = (audio && typeof audio.currentTime === 'number') ? audio.currentTime : NaN;
-                    if (typeof dur === 'number' && isFinite(dur) && dur > 0 && typeof cur === 'number' && isFinite(cur)) {{
-                        // Gerçek MP3 süre bilgisiyse, kalan süreye göre karar ver
-                        const remaining = dur - cur;
-                        return remaining <= 1.2; // 1.2 saniye kalınca geç
-                    }}
-                }} catch (_) {{}}
-
-                // duration henüz gelmemişse, son switch'ten hesaplanan tahmini bitişe göre bak
-                try {{
-                    if (trackEndAtMs && isFinite(trackEndAtMs) && trackEndAtMs > 0) {{
-                        return Date.now() >= (trackEndAtMs - 250);
-                    }}
-                }} catch (_) {{}}
-
-                // Emin değilsek (ilk yükleme gibi) geç
-                return true;
-            }};
-
-            if (canSwitchNow()) {{
-                setSrcAndSeek(currentTrack.url, seekTime, !isMuted, currentTrack.duration);
+        // Program değiştiyse (veya ilk açılışta) yeni programın ilk parçasını başlat.
+        if (currentTrack && currentTrack.url) {{
+            if (programChanged || !audio.src || audio.src !== currentTrack.url) {{
+                setSrcAndSeek(currentTrack.url, 0, !isMuted, currentTrack.duration);
             }}
         }}
 
@@ -2640,9 +2646,10 @@ siktir
 
             if (shouldSkip && (now - lastStuckSkipAt) > 15000) {{
                 lastStuckSkipAt = now;
-                playbackOffsetSeconds += Math.ceil(currentTrack.duration) + 2;
-                setStatus("OTOMATİK ATLA: " + formatTitleFromUrl(nextTrack.url));
-                setSrcAndSeek(nextTrack.url, 0, true, nextTrack.duration);
+                const skippedTo = nextTrackInProgram(true);
+                if (skippedTo && skippedTo.url) {{
+                    setStatus("OTOMATİK ATLA: " + formatTitleFromUrl(skippedTo.url));
+                }}
             }}
         }} catch (_) {{}}
 
