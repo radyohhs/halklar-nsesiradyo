@@ -548,14 +548,7 @@ html_code = f"""
             filter: none;
         }}
 
-        /* şaşal_bey56 görseli: filtre yok */
-        #dj-top-img-sasal {{
-            filter: none;
-            background: transparent;
-            border: none;
-            border-radius: 0;
-            padding: 0;
-        }}
+        /* (eski özel DJ img id'leri kaldırıldı) */
         @keyframes dj-img-move {{
             0% {{ transform: translateY(0px) rotate(-2deg) scale(1.00); }}
             50% {{ transform: translateY(-6px) rotate(2deg) scale(1.02); }}
@@ -940,24 +933,6 @@ html_code = f"""
             decoding="async"
             style="display:none;"
             src=""
-        />
-        <img
-            id="dj-top-img-serhadoo"
-            alt="DJ Serhadoo"
-            draggable="false"
-            style="display:none;"
-            loading="eager"
-            decoding="async"
-            src="https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/animasyonlar/Trending%20GIF%20dancing%20colorful%20feeling%20it%20galantis%20pharmacy%20at%20the%20club%20louder%20harder%20better.gif"
-        />
-        <img
-            id="dj-top-img-sasal"
-            alt="DJ şaşal_bey56"
-            draggable="false"
-            style="display:none;"
-            loading="eager"
-            decoding="async"
-            src="https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/animasyonlar/Trending%20GIF%20dancing%20colorful%20feeling%20it%20galantis%20pharmacy%20at%20the%20club%20louder%20harder%20better.gif"
         />
         <span id="dj-top-text">DJ: --</span>
     </div>
@@ -1717,10 +1692,7 @@ html_code = f"""
             }};
 
             const djName = (djText || 'DJ').replace(/^DJ\\s*/i, '') || 'DJ';
-            // DJ görselleri: xalo_56, serhadoo, şaşal_bey56
             const djImgEl = document.getElementById('dj-top-img');
-            const djImgSerhadooEl = document.getElementById('dj-top-img-serhadoo');
-            const djImgSasalEl = document.getElementById('dj-top-img-sasal');
 
             const normalizeDjKey = (s) => {{
                 const t = (s || '').toString().trim().toLowerCase();
@@ -1744,10 +1716,6 @@ html_code = f"""
             }};
             const chosenUrl = pickDjImageUrl(djKey);
 
-            const isXalo = (djKey === 'xalo_56' || djKey === 'xalo56');
-            const isSerhadoo = (djKey === 'serhadoo');
-            const isSasal = (djKey === 'sasal_bey56' || djKey === 'sasalbey56' || djKey === 'sasal');
-
             const setVisible = (el, v) => {{ if (el) el.style.display = v ? 'block' : 'none'; }};
             // DJ_IMAGE_URLS içinde bu DJ için link varsa onu kullan (tüm DJ'ler için)
             const ok = chosenUrl && !String(chosenUrl).includes('PASTE_');
@@ -1760,10 +1728,8 @@ html_code = f"""
                 }}
             }}
 
-            // Link varsa her DJ'de aynı görsel alanını kullan; yoksa eski kural (xalo/serhadoo/sasal)
-            setVisible(djImgEl, ok ? true : isXalo);
-            setVisible(djImgSerhadooEl, ok ? false : isSerhadoo);
-            setVisible(djImgSasalEl, ok ? false : isSasal);
+            // Link varsa göster, yoksa gizle (performans için tek img kullanıyoruz)
+            setVisible(djImgEl, ok ? true : false);
 
             // GIF'ler bazen "gelip gidiyor" çünkü her tick'te cache-bust yapınca yeniden yükleniyor.
             // Bu yüzden sadece DJ/program değiştiğinde veya URL değiştiğinde src set edeceğiz.
@@ -1788,13 +1754,7 @@ html_code = f"""
             }};
 
             const keyChanged = (activeKey !== key);
-            if (ok) {{
-                refreshSrc(djImgEl, keyChanged);
-            }} else {{
-                if (isXalo) refreshSrc(djImgEl, keyChanged);
-                if (isSerhadoo) refreshSrc(djImgSerhadooEl, keyChanged);
-                if (isSasal) refreshSrc(djImgSasalEl, keyChanged);
-            }}
+            if (ok) refreshSrc(djImgEl, keyChanged);
             djTopTextEl.innerHTML =
                 '<span class="dj-label">DJ:</span> <span class="dj-name">' + escapeHtml(djName) + '</span>';
         }}
