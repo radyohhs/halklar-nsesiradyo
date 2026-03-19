@@ -835,6 +835,7 @@ html_code = f"""
         // Ably tarafında sohbet sayfası açık olanlar presence "enter" olur, kapanınca "leave" gelir.
         const memberIdToName = {{}};
         const activeNameCount = {{}};
+        const activeMembersByKey = {{}};
 
         const normalizeName = (n) => {{
             const s = (n || '').toString().trim();
@@ -856,6 +857,14 @@ html_code = f"""
                 el.classList.toggle('chat-name-active', isActive);
                 el.classList.toggle('chat-name-inactive', !isActive);
             }});
+        }};
+
+        const updateViewerCount = () => {{
+            const count = Object.keys(activeMembersByKey).length;
+            // sync() içinde okuyabilmek için global yaz
+            window.__viewerCount = count;
+            const viewersEl = document.getElementById('viewers');
+            if (viewersEl) viewersEl.innerText = count;
         }};
 
         const pushMsg = (name, text) => {{
@@ -975,15 +984,20 @@ html_code = f"""
                 // temizle
                 for (const k in activeNameCount) delete activeNameCount[k];
                 for (const k in memberIdToName) delete memberIdToName[k];
+                for (const k in activeMembersByKey) delete activeMembersByKey[k];
 
                 const list = Array.isArray(members) ? members : (members ? (Object.values(members) || []) : []);
                 list.forEach(p => {{
                     const key = memberKeyFromPresence(p);
                     const nm = extractNameFromPresence(p);
+                    if (key && key !== 'unknown') {{
+                        activeMembersByKey[key] = true;
+                    }}
                     memberIdToName[key] = nm;
                     activeNameCount[nm] = (activeNameCount[nm] || 0) + 1;
                 }});
                 updateActiveColors();
+                updateViewerCount();
             }};
 
             try {{
@@ -999,9 +1013,13 @@ html_code = f"""
                 channel.presence.subscribe('enter', (p) => {{
                     const key = memberKeyFromPresence(p);
                     const nm = extractNameFromPresence(p);
+                    if (key && key !== 'unknown' && !activeMembersByKey[key]) {{
+                        activeMembersByKey[key] = true;
+                    }}
                     memberIdToName[key] = nm;
                     adjustActive(nm, +1);
                     updateActiveColors();
+                    updateViewerCount();
                 }});
             }} catch (_) {{ }}
 
@@ -1009,9 +1027,13 @@ html_code = f"""
                 channel.presence.subscribe('leave', (p) => {{
                     const key = memberKeyFromPresence(p);
                     const nm = memberIdToName[key];
+                    if (key && key !== 'unknown' && activeMembersByKey[key]) {{
+                        delete activeMembersByKey[key];
+                    }}
                     if (nm) adjustActive(nm, -1);
                     delete memberIdToName[key];
                     updateActiveColors();
+                    updateViewerCount();
                 }});
             }} catch (_) {{ }}
 
@@ -1349,8 +1371,10 @@ html_code = f"""
             i.classList.toggle('active', h >= parseInt(i.dataset.start) && h < parseInt(i.dataset.end));
         }});
 
-        // Dinleyici sayısını 1-7 arası sabit tut (Yanıp sönme yok)
-        document.getElementById('viewers').innerText = 1 + (Math.floor(Date.now() / 10000) % 7);
+        // Dinleyici sayısını (Presence) gerçek sayımdan al; Presence yoksa fallback yap.
+        const viewersEl = document.getElementById('viewers');
+        const viewersFromPresence = (typeof window.__viewerCount === 'number') ? window.__viewerCount : null;
+        viewersEl && (viewersEl.innerText = viewersFromPresence !== null ? Math.max(0, viewersFromPresence) : 0);
     }}
 
     // Newroz Yazısı Geçişi (5 Saniyede Bir)
