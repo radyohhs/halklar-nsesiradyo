@@ -1609,10 +1609,14 @@ html_code = f"""
     }}
 
     // Otomatik skip: ses ilerlemiyorsa bir sonraki parçaya geç
+    // (Ama erken atlamayı engellemek için daha sıkı guard'lar var.)
     let playbackOffsetSeconds = 0;
     let lastProgressTime = 0;
     let lastProgressAt = Date.now();
     let lastStuckSkipAt = 0;
+    let trackStartAtMs = Date.now();
+    let trackStartTime = 0;
+    let currentTrackUrlGuard = '';
 
     audio.addEventListener('timeupdate', () => {{
         try {{
@@ -1697,6 +1701,12 @@ html_code = f"""
 
     function setSrcAndSeek(url, seekTime, shouldPlay) {{
         audio.src = url;
+        // Yeni parçaya geçince "ilerleme yok" sayacını sıfırla.
+        currentTrackUrlGuard = url;
+        trackStartAtMs = Date.now();
+        trackStartTime = seekTime;
+        lastProgressAt = Date.now();
+        lastProgressTime = seekTime;
         const applySeek = () => {{
             try {{ audio.currentTime = seekTime; }} catch (_) {{ }}
             if (shouldPlay) safePlay();
@@ -1932,13 +1942,32 @@ html_code = f"""
             audio.currentTime = seekTime;
         }}
 
-        // Şarkı takıldı / ilerleme yoksa otomatik bir sonraki parçaya atla
+        // Şarkı takıldı / gerçekten ilerleme yoksa otomatik bir sonraki parçaya atla
         try {{
             const now = Date.now();
             const stuckForMs = now - lastProgressAt;
             const tNow = audio && typeof audio.currentTime === 'number' ? audio.currentTime : 0;
             const timeLooksStuck = Math.abs(tNow - lastProgressTime) < 0.35;
-            const shouldSkip = (!isMuted) && stuckForMs > 9000 && timeLooksStuck && nextTrack && nextTrack.url;
+
+            const playingUrl = audio && audio.src ? audio.src : '';
+            const urlLooksSameTrack =
+                currentTrackUrlGuard && (playingUrl === currentTrackUrlGuard || playingUrl.indexOf(currentTrackUrlGuard) !== -1);
+
+            let hasBuffered = false;
+            try {{
+                hasBuffered = audio && audio.buffered && audio.buffered.length > 0;
+            }} catch (_) {{ hasBuffered = false; }}
+
+            const lowReady = audio && typeof audio.readyState === 'number' ? audio.readyState <= 1 : false;
+            const isPaused = !!(audio && audio.paused);
+            const shouldSkip =
+                (!isMuted) &&
+                urlLooksSameTrack &&
+                stuckForMs > 11000 &&
+                timeLooksStuck &&
+                nextTrack && nextTrack.url &&
+                (!hasBuffered) &&
+                (lowReady || isPaused);
 
             if (shouldSkip && (now - lastStuckSkipAt) > 15000) {{
                 lastStuckSkipAt = now;
