@@ -807,6 +807,15 @@ html_code = f"""
         .col-chat #chatAdminLine .admin-label {{ color: #ff4500; font-weight: 900; }}
         .col-chat #chatAdminLine .admin-name {{ color: #ffffff; font-weight: 800; }}
         .col-chat #chatAdminLine .admin-active {{ color: rgba(0,255,0,0.70); font-weight: 900; }}
+        .col-chat #chatPresenceLine {{
+            text-align: center;
+            color: rgba(255,255,255,0.78);
+            font-size: clamp(10px, 1.0vh, 12px);
+            letter-spacing: 1px;
+            margin-top: 0.2vh;
+            margin-bottom: 0.2vh;
+            user-select: none;
+        }}
         
         /* Yayın akışı: kaydırmasız, 1 ekrana sığsın */
         .row-item {{ flex: 1 1 0; min-height: 0; padding: 0.95vh 1vh; border-bottom: 1px solid rgba(255,255,255,0.06); opacity: 0.38; }}
@@ -1125,6 +1134,7 @@ html_code = f"""
     <div class="panel col-chat">
         <div style="text-align:center; color:#ff4500; font-size:1.1vh; font-weight:bold; letter-spacing:4px;">CANLI SOHBET</div>
         <div id="chatAdminLine"><span class="admin-label">ADMIN:</span> <span class="admin-name">--</span> <span class="admin-active">(aktif)</span></div>
+        <div id="chatPresenceLine">AKTİF KULLANICI: <span id="chatActiveCount">0</span></div>
         <div class="chat-wrap">
             <div id="chatPinned" class="chat-pinned"></div>
             <div id="chatLog" class="chat-log"></div>
@@ -1150,6 +1160,7 @@ html_code = f"""
         const statusEl = document.getElementById('chatStatus');
         const adminLineEl = document.getElementById('chatAdminLine');
         const pinnedEl = document.getElementById('chatPinned');
+        const activeCountEl = document.getElementById('chatActiveCount');
 
         try {{
         // Presence'a göre aktiflik rengi:
@@ -1623,6 +1634,13 @@ siktir
                 el.classList.toggle('chat-name-active', isActive);
                 el.classList.toggle('chat-name-inactive', !isActive);
             }});
+            // Aktif kullanıcı sayısını presence kayıtlarına göre güncelle
+            try {{
+                const total = Object.values(activeNameCount).reduce((sum, v) => sum + (Number(v) || 0), 0);
+                if (activeCountEl) activeCountEl.textContent = String(total);
+            }} catch (_) {{
+                if (activeCountEl) activeCountEl.textContent = "0";
+            }}
         }};
 
         const pushMsg = (name, text) => {{
