@@ -496,6 +496,14 @@ html_code = f"""
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6M7N3Z4193"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){{dataLayer.push(arguments);}}
+      gtag('js', new Date());
+      gtag('config', 'G-6M7N3Z4193');
+    </script>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body, html {{ height: 100dvh; width: 100%; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }}
