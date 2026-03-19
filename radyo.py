@@ -702,6 +702,13 @@ html_code = f"""
         .row-item > div:nth-child(2) {{ color: rgba(255, 110, 60, 0.92) !important; }}
         .active {{ opacity: 1; border-left: 5px solid #ff4500; background: rgba(255, 69, 0, 0.09); box-shadow: inset 0 0 0 1px rgba(255, 69, 0, 0.12), 0 0 18px rgba(255, 69, 0, 0.08); }}
         .row-desc {{ font-size: 1.05vh; color: rgba(255,255,255,0.70); margin-top: 0.25vh; }}
+        .dj-inline {{
+            color: rgba(255,255,255,0.52);
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            font-size: 0.72em;
+            opacity: 0.85;
+        }}
         
         .disk-wrapper {{ width: 40vh; height: 40vh; border-radius: 50%; border: 15px solid #111; overflow: hidden; background: #000; animation: rotate-disk 40s linear infinite; }}
         @keyframes rotate-disk {{ from {{ transform: rotate(0deg); }} to {{ transform: rotate(360deg); }} }}
@@ -949,49 +956,49 @@ html_code = f"""
 <div class="main-grid">
     <div class="panel col-flow">
         <div class="flow-title">YAYIN AKIŞI</div>
-        <div class="row-item" data-start="0" data-end="3">
+        <div class="row-item" data-key="ahmet_kaya" data-start="0" data-end="3">
             <div>00:00 — 03:00</div>
-            <div style="font-weight:bold; color:#ff4500;">AHMET KAYA ŞARKILARI</div>
+            <div style="font-weight:bold; color:#ff4500;" data-title-for="ahmet_kaya">AHMET KAYA ŞARKILARI</div>
             <div class="row-desc">Sürgünün, özlemin ve isyanın sesi Ahmet Kaya'nın sevilen şarkıları.</div>
         </div>
-        <div class="row-item" data-start="3" data-end="6">
+        <div class="row-item" data-key="ermeni_ezgileri" data-start="3" data-end="6">
             <div>03:00 — 06:00</div>
-            <div style="font-weight:bold; color:#ff4500;"> ERMENİ HALK EZGİLERİ</div>
+            <div style="font-weight:bold; color:#ff4500;" data-title-for="ermeni_ezgileri"> ERMENİ HALK EZGİLERİ</div>
             <div class="row-desc">Ermenice şarkı seçkileri.</div>
         </div>
-        <div class="row-item" data-start="6" data-end="11">
+        <div class="row-item" data-key="mozaik" data-start="6" data-end="11">
             <div>06:00 — 11:00</div>
-            <div style="font-weight:bold; color:#ff4500;">MOZAİK</div>
+            <div style="font-weight:bold; color:#ff4500;" data-title-for="mozaik">MOZAİK</div>
             <div class="row-desc">Farklı dillerden, kültürlerden özgürlük ezgileri.</div>
         </div>
-        <div class="row-item" data-start="11" data-end="14">
+        <div class="row-item" data-key="tsm" data-start="11" data-end="14">
             <div>11:00 — 14:00</div>
-            <div style="font-weight:bold; color:#ff4500;">TSM SAATİ</div>
+            <div style="font-weight:bold; color:#ff4500;" data-title-for="tsm">TSM SAATİ</div>
             <div class="row-desc">Klasik Türk sanat müziğiyle nostaljik bir yolculuk.</div>
         </div>
-        <div class="row-item" data-start="14" data-end="17">
+        <div class="row-item" data-key="tiyatro" data-start="14" data-end="17">
             <div>14:00 — 17:00</div>
-            <div style="font-weight:bold; color:#ff4500;">RADYO TİYATROSU</div>
+            <div style="font-weight:bold; color:#ff4500;" data-title-for="tiyatro">RADYO TİYATROSU</div>
             <div class="row-desc">Toplumsal gerçekçi oyunlar ve sesli hikâyeler.</div>
         </div>
-        <div class="row-item" data-start="17" data-end="20">
+        <div class="row-item" data-key="soldan_sesler" data-start="17" data-end="20">
             <div>17:00 — 20:00</div>
-            <div style="font-weight:bold; color:#ff4500;">SOLDAN SESLER</div>
+            <div style="font-weight:bold; color:#ff4500;" data-title-for="soldan_sesler">SOLDAN SESLER</div>
             <div class="row-desc">Politik ve alternatif şarkı seçkileri.</div>
         </div>
-        <div class="row-item" data-start="20" data-end="21">
+        <div class="row-item" data-key="tasavvuf" data-start="20" data-end="21">
             <div>20:00 — 21:00</div>
-            <div style="font-weight:bold; color:#ff4500;">TASAVVUF VAKTİ</div>
+            <div style="font-weight:bold; color:#ff4500;" data-title-for="tasavvuf">TASAVVUF VAKTİ</div>
             <div class="row-desc">Tasavvuf musikisi ve mistik ezgiler.</div>
         </div>
-        <div class="row-item" data-start="21" data-end="22">
+        <div class="row-item" data-key="anadolu_rock" data-start="21" data-end="22">
             <div>21:00 — 22:00</div>
-            <div style="font-weight:bold; color:#ff4500;">ANADOLU ROCK</div>
+            <div style="font-weight:bold; color:#ff4500;" data-title-for="anadolu_rock">ANADOLU ROCK</div>
             <div class="row-desc">Anadolu rock’ın efsaneleşmiş şarkıları.</div>
         </div>
-        <div class="row-item" data-start="22" data-end="24">
+        <div class="row-item" data-key="grup_yorum" data-start="22" data-end="24">
             <div>22:00 — 00:00</div>
-            <div style="font-weight:bold; color:#ff4500;">GRUP YORUM SAATİ</div>
+            <div style="font-weight:bold; color:#ff4500;" data-title-for="grup_yorum">GRUP YORUM SAATİ</div>
             <div class="row-desc">Direnişin sesi Grup Yorum’dan seçilmiş eserler.</div>
         </div>
     </div>
@@ -1831,6 +1838,28 @@ html_code = f"""
         document.querySelectorAll('.row-item').forEach(i => {{
             i.classList.toggle('active', h >= parseInt(i.dataset.start) && h < parseInt(i.dataset.end));
         }});
+
+        // Yayın akışında DJ'yi program adının yanına (parantez içinde) yaz
+        try {{
+            document.querySelectorAll('[data-title-for]').forEach(el => {{
+                const k = el.getAttribute('data-title-for');
+                if (!k) return;
+
+                // başlığı bir kez sakla
+                const base = el.getAttribute('data-base-title') || el.textContent || '';
+                if (!el.getAttribute('data-base-title')) el.setAttribute('data-base-title', base.trim());
+
+                const dj = (radioData.djs && radioData.djs[k]) ? String(radioData.djs[k]) : '';
+                const djName = dj.replace(/^DJ\\s*/i, '').trim();
+
+                const bt = el.getAttribute('data-base-title') || base.trim();
+                if (djName) {{
+                    el.innerHTML = bt + ' <span class=\"dj-inline\">(DJ ' + djName + ')</span>';
+                }} else {{
+                    el.textContent = bt;
+                }}
+            }});
+        }} catch (e) {{}}
 
         // Dinleyici sayısını (gerçek Presence yerine) 1-8 arası dönen değer yapıyoruz.
         // Bu, Presence gelmediğinde 0 görünmesini engeller.
