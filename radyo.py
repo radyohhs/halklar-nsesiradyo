@@ -2744,6 +2744,14 @@ st.markdown(
 iframe { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: none; }
 #MainMenu, footer, header {visibility: hidden;}
 </style>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6M7N3Z4193"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-6M7N3Z4193');
+</script>
 <script>
 // Streamlit iframe'ına autoplay izni ver (bazı tarayıcılarda ses için şart)
 (function() {
