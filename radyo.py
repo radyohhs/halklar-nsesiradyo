@@ -1602,59 +1602,10 @@ siktir
         const bannedPhrasesCompact = (bannedPhrasesNorm || []).map(ph => String(ph || '').replace(/\s+/g, '')).filter(ph => ph.length >= 3);
 
         const isProfane = (text) => {{
-            const t = normalizeForFilter(text);
-            if (!t) return false;
-            const tCompact = t.replace(/\\s+/g, '');
-            const tokens = t.split(/\\s+/).filter(Boolean);
-
-            for (const nw of bannedWordsNorm) {{
-                // Kelime bazlı kontrol
-                if (tokens.includes(nw)) return true;
-
-                // Bozma/arasına boşluk koyma: "a m k" -> "amk"
-                const nwCompact = nw.replace(/\\s+/g, '');
-                if (nwCompact.length >= 3 && tCompact.includes(nwCompact)) return true;
-            }}
-
-            // Kök/desen kontrolü (tek tek kelime eklemeden yakalama)
-            for (const stem of bannedStemsAll) {{
-                if (!stem) continue;
-                if (stem.length <= 3) {{
-                    // Kısa köklerde false-positive azaltmak için token sınırı uygula
-                    for (const tok of tokens) {{
-                        if (tok === stem) return true;
-                        if (tok.startsWith(stem) && tok.length > stem.length) return true;
-                    }}
-                }} else {{
-                    if (tokens.includes(stem)) return true;
-                    if (tCompact.includes(stem)) return true;
-                }}
-            }}
-
-            for (const ph of bannedPhrasesCompact) {{
-                if (ph && ph.length >= 3 && tCompact.includes(ph)) return true;
-            }}
-
             return false;
         }};
 
         const isSexual = (text) => {{
-            const t = normalizeForFilter(text);
-            if (!t) return false;
-            const tokens = t.split(/\\s+/).filter(Boolean);
-            const tCompact = t.replace(/\\s+/g, '');
-
-            for (const w of sexualWords) {{
-                const nw = normalizeForFilter(w);
-                if (!nw) continue;
-
-                // Kelime bazlı
-                if (tokens.includes(nw)) return true;
-
-                // Boşluksuz yakalama: "seksxxx" / "porno123" gibi
-                const nwCompact = nw.replace(/\\s+/g, '');
-                if (nwCompact.length >= 3 && tCompact.includes(nwCompact)) return true;
-            }}
             return false;
         }};
 
@@ -1676,10 +1627,6 @@ siktir
 
         const pushMsg = (name, text) => {{
             if (!logEl) return;
-            // Gelen mesajlarda küfür varsa ekrana basma
-            try {{
-                if (isProfane(text) || isSexual(text)) return;
-            }} catch (e) {{}}
             const displayName = normalizeName(name);
             const wrap = document.createElement('div');
             wrap.className = 'chat-msg';
@@ -1928,45 +1875,7 @@ siktir
             const name = (nameEl && nameEl.value ? nameEl.value.trim() : '') || 'Anonim';
             const text = (textEl && textEl.value ? textEl.value.trim() : '');
             if (!text) return;
-            // Küfür kontrolü
-            try {{
-                if (isProfane(text) || isSexual(text)) {{
-                    if (statusEl) statusEl.textContent = "Uygunsuz içerik tespit edildi. Mesaj engellendi.";
-                    return;
-                }}
-            }} catch (e) {{}}
-
-            // Spam kontrolü (hız + tekrar + saniye penceresi)
-            try {{
-                const now = Date.now();
-                const cooldownMs = 10000; // 10 saniyede 1 mesaj
-                const diff = now - myLastSendAt;
-                if (diff < cooldownMs) {{
-                    const remainingMs = cooldownMs - diff;
-                    const remainingSec = Math.ceil(remainingMs / 1000);
-                    if (statusEl) statusEl.textContent = "Spam engellendi: 10 saniye bekleyin. " + remainingSec + " sn sonra tekrar deneyin.";
-                    return;
-                }}
-                myLastSendAt = now;
-
-                mySendTimes = mySendTimes.filter(ts => now - ts < 60000);
-                mySendTimes.push(now);
-                if (mySendTimes.length > 10) {{
-                    if (statusEl) statusEl.textContent = "Spam engellendi: çok fazla mesaj gönderdin.";
-                    return;
-                }}
-
-                const norm = normalizeForFilter(text);
-                if (norm && norm === myLastNormText) myRepeatCount += 1;
-                else {{
-                    myLastNormText = norm;
-                    myRepeatCount = 0;
-                }}
-                if (myRepeatCount >= 2) {{
-                    if (statusEl) statusEl.textContent = "Spam engellendi: mesajın tekrar ediyor.";
-                    return;
-                }}
-            }} catch (e) {{}}
+            // Tüm filtreler kapalı: herkes serbest mesaj atabilir.
 
             // Mesaj onaylandı: metin kutusunu temizle
             if (textEl) textEl.value = '';
