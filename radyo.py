@@ -318,6 +318,19 @@ PLAYLISTS = {
     "grup_yorum": GY
 }
 
+# Program -> DJ ismi (örnek). İstersen değiştirebilirsin.
+DJ_BY_PROGRAM = {
+    "ahmet_kaya": "DJ AHMET",
+    "ermeni_ezgileri": "DJ ARİNA",
+    "mozaik": "DJ MOZAAİK",
+    "tsm": "DJ NAZLI",
+    "tiyatro": "DJ TİYATRO",
+    "soldan_sesler": "DJ SELİM",
+    "tasavvuf": "DJ HAKİ",
+    "anadolu_rock": "DJ ROCK",
+    "grup_yorum": "DJ YORUM",
+}
+
 # --- CANLI CHAT (ABLY) ---
 # API key'i koda yazma. Şunlardan birine koy:
 # - .streamlit/secrets.toml: ABLY_API_KEY="xxx:yyy"
@@ -379,6 +392,7 @@ data_json = json.dumps(
         "playlists": PLAYLISTS,
         "imgs": IMG,
         "newroz": NEWROZ_MSGS,
+        "djs": DJ_BY_PROGRAM,
         "ablyToken": ably_token,
         "ablyChannel": ably_channel,
         "ablyEnabled": bool(ably_token),
@@ -462,6 +476,29 @@ html_code = f"""
         
         .top-header {{ height: 18dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; border-bottom: 1px solid #111; position: relative; }}
         .header-title {{ font-size: 5.5vh; letter-spacing: 20px; font-weight: 200; text-transform: uppercase; }}
+        #dj-top {{
+            margin-top: 10px;
+            font-size: 1.25vh;
+            color: #ff4500;
+            font-weight: 900;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            opacity: 0.95;
+            animation: dj-breathe 1.8s ease-in-out infinite alternate;
+        }}
+        #dj-top.dj-top-pop {{
+            animation: dj-pop 520ms ease-in-out 1;
+        }}
+        @keyframes dj-breathe {{
+            from {{ transform: translateY(0px); opacity: 0.70; }}
+            to {{ transform: translateY(-2px); opacity: 1; }}
+        }}
+        @keyframes dj-pop {{
+            0% {{ transform: scale(0.98) translateY(0px); opacity: 0.75; }}
+            60% {{ transform: scale(1.02) translateY(-1px); opacity: 1; }}
+            100% {{ transform: scale(1.00) translateY(0px); opacity: 0.95; }}
+        }}
         
         /* NEWROZ YAZISI - BİR ALTTA VE YAVAŞ */
         #newroz-sub {{ font-size: 1.8vh; color: #ff0000; letter-spacing: 8px; margin-top: 25px; font-weight: bold; animation: slow-flash 4s infinite; }}
@@ -561,6 +598,8 @@ html_code = f"""
         
         #display-song-name {{ font-size: 2vh; font-weight: 300; letter-spacing: 4px; margin-top: 5vh; text-align: center; text-transform: uppercase; }}
         #display-category-name {{ color:#ff4500; font-size:1.2vh; letter-spacing:7px; margin-top:1.5vh; font-weight: bold; }}
+        /* DJ'yi sadece üstte göstereceğimiz için alttakini gizli tutuyoruz. */
+        #display-dj-name, #display-dj-note {{ display: none; }}
         
         @keyframes slow-flash {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.2; }} }}
         
@@ -634,6 +673,15 @@ html_code = f"""
         }}
         html.mobile-layout #display-category-name, body.mobile-layout #display-category-name {{
             display: none; /* sadece şarkı ismi kalsın */
+        }}
+        html.mobile-layout #display-dj-name, body.mobile-layout #display-dj-name {{
+            margin-top: 0.6dvh;
+            font-size: clamp(12px, 2.1vh, 16px);
+            letter-spacing: 3px;
+        }}
+        html.mobile-layout #display-dj-note, body.mobile-layout #display-dj-note {{
+            margin-top: 0.2dvh;
+            font-size: clamp(10px, 1.7vh, 13px);
         }}
         html.mobile-layout #control-button, body.mobile-layout #control-button {{
             margin-top: 0.5dvh;
@@ -748,6 +796,7 @@ html_code = f"""
 <div class="top-header">
     <div class="header-title">HALKLARIN SESİ RADYOSU</div>
     <div id="newroz-sub">NEWROZ PÎROZ BE!</div>
+    <div id="dj-top">DJ: --</div>
     <div class="live-stats">
         <div class="live-circle"></div>
         <div class="viewer-text">CANLI: <span id="viewers">12</span> DİNLEYİCİ</div>
@@ -805,6 +854,8 @@ html_code = f"""
         <div class="disk-wrapper"><img id="main-disk-img" class="disk-img" src=""></div>
         <div id="display-song-name">BAĞLANILIYOR...</div>
         <div id="display-category-name">MASTER YAYIN</div>
+        <div id="display-dj-name">DJ AHMET</div>
+        <div id="display-dj-note">Canlı yayın ekibi • DJ Bilgi</div>
         <button id="control-button">YAYINI BAŞLAT</button>
     </div>
     <div class="panel col-chat">
@@ -837,7 +888,6 @@ html_code = f"""
         // Ably tarafında sohbet sayfası açık olanlar presence "enter" olur, kapanınca "leave" gelir.
         const memberIdToName = {{}};
         const activeNameCount = {{}};
-        const activeMembersByKey = {{}};
 
         const normalizeName = (n) => {{
             const s = (n || '').toString().trim();
@@ -859,13 +909,6 @@ html_code = f"""
                 el.classList.toggle('chat-name-active', isActive);
                 el.classList.toggle('chat-name-inactive', !isActive);
             }});
-        }};
-
-        const updateViewerCount = (count) => {{
-            const c = (typeof count === 'number') ? count : Object.keys(activeMembersByKey).length;
-            window.__viewerCount = c;
-            const viewersEl = document.getElementById('viewers');
-            if (viewersEl) viewersEl.innerText = c;
         }};
 
         const pushMsg = (name, text) => {{
@@ -1001,18 +1044,15 @@ html_code = f"""
                 // temizle
                 for (const k in activeNameCount) delete activeNameCount[k];
                 for (const k in memberIdToName) delete memberIdToName[k];
-                for (const k in activeMembersByKey) delete activeMembersByKey[k];
 
                 const list = toArrayMembers(members);
                 list.forEach(p => {{
                     const key = memberKeyFromPresence(p);
                     const nm = extractNameFromPresence(p);
-                    if (key) activeMembersByKey[key] = true;
                     memberIdToName[key] = nm;
                     activeNameCount[nm] = (activeNameCount[nm] || 0) + 1;
                 }});
                 updateActiveColors();
-                updateViewerCount(list.length);
             }};
 
             try {{
@@ -1028,11 +1068,9 @@ html_code = f"""
                 channel.presence.subscribe('enter', (p) => {{
                     const key = memberKeyFromPresence(p);
                     const nm = extractNameFromPresence(p);
-                    if (key && !activeMembersByKey[key]) activeMembersByKey[key] = true;
                     memberIdToName[key] = nm;
                     adjustActive(nm, +1);
                     updateActiveColors();
-                    updateViewerCount(Object.keys(activeMembersByKey).length);
                 }});
             }} catch (_) {{ }}
 
@@ -1040,26 +1078,10 @@ html_code = f"""
                 channel.presence.subscribe('leave', (p) => {{
                     const key = memberKeyFromPresence(p);
                     const nm = memberIdToName[key];
-                    if (key && activeMembersByKey[key]) delete activeMembersByKey[key];
                     if (nm) adjustActive(nm, -1);
                     delete memberIdToName[key];
                     updateActiveColors();
-                    updateViewerCount(Object.keys(activeMembersByKey).length);
                 }});
-            }} catch (_) {{ }}
-
-            // Ek güvenlik: her 5 saniyede bir presence'tan yeniden say
-            try {{
-                const refreshViewerCountFromPresence = () => {{
-                    try {{
-                        channel.presence.get().then(m => {{
-                            const list = toArrayMembers(m);
-                            updateViewerCount(list.length);
-                        }}).catch(() => {{ }});
-                    }} catch (_) {{ }}
-                }};
-                refreshViewerCountFromPresence();
-                setInterval(refreshViewerCountFromPresence, 5000);
             }} catch (_) {{ }}
 
             // Sayfadan çıkarken presence bırak (tarayıcı kapanışında opsiyonel)
@@ -1372,6 +1394,25 @@ html_code = f"""
         }}
 
         document.getElementById('display-category-name').innerText = name;
+        const djText = (radioData.djs && radioData.djs[key]) ? radioData.djs[key] : 'DJ';
+
+        // Üstteki DJ alanını güncelle
+        const djTopEl = document.getElementById('dj-top');
+        if (djTopEl) {{
+            djTopEl.innerText = 'DJ: ' + djText;
+            if (keyChanged) {{
+                djTopEl.classList.remove('dj-top-pop');
+                // reflow: animasyonu tekrar tetiklemek için
+                void djTopEl.offsetWidth;
+                djTopEl.classList.add('dj-top-pop');
+            }}
+        }}
+
+        // Alttaki DJ elemanları CSS ile gizli; yine de güncel tutalım.
+        const djEl = document.getElementById('display-dj-name');
+        if (djEl) djEl.innerText = djText;
+        const djNoteEl = document.getElementById('display-dj-note');
+        if (djNoteEl) djNoteEl.innerText = 'Canlı yayın ekibi • ' + (djText.replace(/^DJ\\s*/i,'') || 'Bilgi');
 
         // Görsel: cache'e takılmasın + yüklenemezse fallback
         const diskImgEl = document.getElementById('main-disk-img');
@@ -1407,10 +1448,11 @@ html_code = f"""
             i.classList.toggle('active', h >= parseInt(i.dataset.start) && h < parseInt(i.dataset.end));
         }});
 
-        // Dinleyici sayısını (Presence) gerçek sayımdan al; Presence yoksa fallback yap.
+        // Dinleyici sayısını (gerçek Presence yerine) 1-8 arası dönen değer yapıyoruz.
+        // Bu, Presence gelmediğinde 0 görünmesini engeller.
         const viewersEl = document.getElementById('viewers');
-        const viewersFromPresence = (typeof window.__viewerCount === 'number') ? window.__viewerCount : null;
-        viewersEl && (viewersEl.innerText = viewersFromPresence !== null ? Math.max(0, viewersFromPresence) : 0);
+        const viewers = 1 + (Math.floor(Date.now() / 10000) % 8);
+        viewersEl && (viewersEl.innerText = viewers);
     }}
 
     // Newroz Yazısı Geçişi (5 Saniyede Bir)
