@@ -902,7 +902,7 @@ html_code = f"""
         }}
 
     </style>
-    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+    <script src="https://cdn.ably.com/lib/ably.min-1.js" defer></script>
 </head>
 <body>
 <script>
@@ -1108,9 +1108,32 @@ html_code = f"""
             return;
         }}
 
-        if (typeof Ably === 'undefined') {{
+        // Ably script defer ile geliyor; yüklenene kadar kısa süre bekle.
+        const waitForAbly = (triesLeft = 80) => {{
+            if (typeof Ably !== 'undefined') return true;
+            if (triesLeft <= 0) return false;
+            return null;
+        }};
+        const okAbly = waitForAbly();
+        if (okAbly === false) {{
             if (statusEl) statusEl.textContent = "Chat yüklenemedi (Ably script).";
             if (sendEl) sendEl.disabled = true;
+            return;
+        }}
+        if (okAbly === null) {{
+            if (statusEl) statusEl.textContent = "Chat yükleniyor...";
+            if (sendEl) sendEl.disabled = true;
+            let tries = 80;
+            const t = setInterval(() => {{
+                tries -= 1;
+                if (typeof Ably !== 'undefined') {{
+                    clearInterval(t);
+                    try {{ initChat(); }} catch (e) {{}}
+                }} else if (tries <= 0) {{
+                    clearInterval(t);
+                    if (statusEl) statusEl.textContent = "Chat yüklenemedi (Ably script gecikti).";
+                }}
+            }}, 150);
             return;
         }}
 
