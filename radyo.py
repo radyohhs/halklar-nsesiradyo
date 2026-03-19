@@ -1179,6 +1179,15 @@ html_code = f"""
             if (activeNameCount[nn] <= 0) delete activeNameCount[nn];
         }};
 
+        const updateActiveCount = () => {{
+            try {{
+                const totalByMember = Object.keys(memberIdToName || {{}}).length;
+                if (activeCountEl) activeCountEl.textContent = String(totalByMember);
+            }} catch (_) {{
+                if (activeCountEl) activeCountEl.textContent = "0";
+            }}
+        }};
+
         // Basit küfür + spam engelleyici (client-side).
         // Not: Bu filtreler kesin güvenlik sağlamaz (bypass edilebilir),
         // ama normal kullanıcılar için büyük ölçüde engeller.
@@ -1635,12 +1644,7 @@ siktir
                 el.classList.toggle('chat-name-inactive', !isActive);
             }});
             // Aktif kullanıcı sayısını presence kayıtlarına göre güncelle
-            try {{
-                const total = Object.values(activeNameCount).reduce((sum, v) => sum + (Number(v) || 0), 0);
-                if (activeCountEl) activeCountEl.textContent = String(total);
-            }} catch (_) {{
-                if (activeCountEl) activeCountEl.textContent = "0";
-            }}
+            updateActiveCount();
         }};
 
         const pushMsg = (name, text) => {{
@@ -1840,17 +1844,23 @@ siktir
                     memberIdToName[key] = nm;
                     activeNameCount[nm] = (activeNameCount[nm] || 0) + 1;
                 }});
+                updateActiveCount();
                 updateActiveColors();
             }};
 
-            try {{
-                const g = channel.presence.get();
-                if (g && typeof g.then === 'function') {{
-                    g.then(m => seedPresence(m)).catch(() => {{ }});
-                }} else {{
-                    channel.presence.get((_, m) => seedPresence(m));
-                }}
-            }} catch (_) {{ }}
+            const refreshPresenceMembers = () => {{
+                try {{
+                    const g = channel.presence.get();
+                    if (g && typeof g.then === 'function') {{
+                        g.then(m => seedPresence(m)).catch(() => {{ }});
+                    }} else {{
+                        channel.presence.get((_, m) => seedPresence(m));
+                    }}
+                }} catch (_) {{ }}
+            }};
+
+            refreshPresenceMembers();
+            try {{ setInterval(refreshPresenceMembers, 8000); }} catch (_) {{ }}
 
             try {{
                 channel.presence.subscribe('enter', (p) => {{
@@ -1858,6 +1868,7 @@ siktir
                     const nm = extractNameFromPresence(p);
                     memberIdToName[key] = nm;
                     adjustActive(nm, +1);
+                    updateActiveCount();
                     updateActiveColors();
                 }});
             }} catch (_) {{ }}
@@ -1868,6 +1879,7 @@ siktir
                     const nm = memberIdToName[key];
                     if (nm) adjustActive(nm, -1);
                     delete memberIdToName[key];
+                    updateActiveCount();
                     updateActiveColors();
                 }});
             }} catch (_) {{ }}
@@ -2373,7 +2385,9 @@ siktir
         const dateStr = dateObj.getFullYear() + '-' +
             String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
             String(dateObj.getDate()).padStart(2, '0');
-        const cacheKey = key + '|' + dateStr;
+        // Sıra tazeleme anahtarı: bunu değiştirince tüm kullanıcılar için yeni günlük sıra oluşur.
+        const shuffleVersion = 'v2';
+        const cacheKey = key + '|' + dateStr + '|' + shuffleVersion;
 
         const dailyShuffledPlaylists = window.dailyShuffledPlaylists || {{}};
         window.dailyShuffledPlaylists = dailyShuffledPlaylists;
