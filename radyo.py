@@ -861,12 +861,11 @@ html_code = f"""
             }});
         }};
 
-        const updateViewerCount = () => {{
-            const count = Object.keys(activeMembersByKey).length;
-            // sync() içinde okuyabilmek için global yaz
-            window.__viewerCount = count;
+        const updateViewerCount = (count) => {{
+            const c = (typeof count === 'number') ? count : Object.keys(activeMembersByKey).length;
+            window.__viewerCount = c;
             const viewersEl = document.getElementById('viewers');
-            if (viewersEl) viewersEl.innerText = count;
+            if (viewersEl) viewersEl.innerText = c;
         }};
 
         const pushMsg = (name, text) => {{
@@ -982,24 +981,37 @@ html_code = f"""
             setMyPresenceName((nameEl && nameEl.value ? nameEl.value.trim() : '') || 'Anonim');
 
             // Mevcut presence'i çek
+            const toArrayMembers = (ms) => {{
+                if (!ms) return [];
+                if (Array.isArray(ms)) return ms;
+                if (typeof ms === 'object') {{
+                    const vals = Object.values(ms);
+                    const out = [];
+                    vals.forEach(v => {{
+                        if (Array.isArray(v)) out.push(...v);
+                        else out.push(v);
+                    }});
+                    return out;
+                }}
+                return [];
+            }};
+
             const seedPresence = (members) => {{
                 // temizle
                 for (const k in activeNameCount) delete activeNameCount[k];
                 for (const k in memberIdToName) delete memberIdToName[k];
                 for (const k in activeMembersByKey) delete activeMembersByKey[k];
 
-                const list = Array.isArray(members) ? members : (members ? (Object.values(members) || []) : []);
+                const list = toArrayMembers(members);
                 list.forEach(p => {{
                     const key = memberKeyFromPresence(p);
                     const nm = extractNameFromPresence(p);
-                    if (key && key !== 'unknown') {{
-                        activeMembersByKey[key] = true;
-                    }}
+                    if (key) activeMembersByKey[key] = true;
                     memberIdToName[key] = nm;
                     activeNameCount[nm] = (activeNameCount[nm] || 0) + 1;
                 }});
                 updateActiveColors();
-                updateViewerCount();
+                updateViewerCount(list.length);
             }};
 
             try {{
@@ -1015,13 +1027,11 @@ html_code = f"""
                 channel.presence.subscribe('enter', (p) => {{
                     const key = memberKeyFromPresence(p);
                     const nm = extractNameFromPresence(p);
-                    if (key && key !== 'unknown' && !activeMembersByKey[key]) {{
-                        activeMembersByKey[key] = true;
-                    }}
+                    if (key && !activeMembersByKey[key]) activeMembersByKey[key] = true;
                     memberIdToName[key] = nm;
                     adjustActive(nm, +1);
                     updateActiveColors();
-                    updateViewerCount();
+                    updateViewerCount(Object.keys(activeMembersByKey).length);
                 }});
             }} catch (_) {{ }}
 
@@ -1029,14 +1039,26 @@ html_code = f"""
                 channel.presence.subscribe('leave', (p) => {{
                     const key = memberKeyFromPresence(p);
                     const nm = memberIdToName[key];
-                    if (key && key !== 'unknown' && activeMembersByKey[key]) {{
-                        delete activeMembersByKey[key];
-                    }}
+                    if (key && activeMembersByKey[key]) delete activeMembersByKey[key];
                     if (nm) adjustActive(nm, -1);
                     delete memberIdToName[key];
                     updateActiveColors();
-                    updateViewerCount();
+                    updateViewerCount(Object.keys(activeMembersByKey).length);
                 }});
+            }} catch (_) {{ }}
+
+            // Ek güvenlik: her 5 saniyede bir presence'tan yeniden say
+            try {{
+                const refreshViewerCountFromPresence = () => {{
+                    try {{
+                        channel.presence.get().then(m => {{
+                            const list = toArrayMembers(m);
+                            updateViewerCount(list.length);
+                        }}).catch(() => {{ }});
+                    }} catch (_) {{ }}
+                }};
+                refreshViewerCountFromPresence();
+                setInterval(refreshViewerCountFromPresence, 5000);
             }} catch (_) {{ }}
 
             // Sayfadan çıkarken presence bırak (tarayıcı kapanışında opsiyonel)
