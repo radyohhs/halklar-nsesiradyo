@@ -342,6 +342,17 @@ DJ_BY_PROGRAM = {
     "grup_yorum": "DJ doktorbey56",
 }
 
+# Her DJ için chat içinde sabit kalacak mesajlar.
+# Not: Python tarafındaki anahtarlar "normalize" sonrası kullanılacaktır;
+# 'şaşal_bey56' -> 'sasal_bey56' olur (Türkçe karakterler sadeleşir).
+PINNED_DJ_MESSAGES = {
+    "xalo_56": "DJ xalo_56 keyifli seyirler diler.",
+    "serhadoo": "DJ serhadoo keyifli seyirler diler.",
+    "sasal_bey56": "DJ şaşal_bey56 keyifli seyirler diler.",
+    "doktorbey56": "DJ doktorbey56 keyifli seyirler diler.",
+    "yusuf": "DJ yusuf keyifli seyirler diler.",
+}
+
 # --- CANLI CHAT (ABLY) ---
 # API key'i koda yazma. Şunlardan birine koy:
 # - .streamlit/secrets.toml: ABLY_API_KEY="xxx:yyy"
@@ -389,6 +400,11 @@ else:
         _tok = ably.auth.request_token(
             {
                 "client_id": "radyo-web",
+                # Token çok kısa expire olursa JS tarafında token yenileme
+                # mekanizması (authUrl/authCallback/key) olmadığı için hata verir.
+                # Bu yüzden TTL'yi olabildiğince uzun tutuyoruz.
+                # Not: Ably limits'e göre dönen TTL istenenden kısa olabilir.
+                "ttl": 12 * 60 * 60 * 1000,  # 12 saat (ms)
                 # Token'ın bu kanala erişmesi için capability'i açıkça belirt.
                 # Yapı: { "channel-name": ["publish","subscribe"] }
                 "capability": json.dumps(
@@ -419,6 +435,7 @@ data_json = json.dumps(
         "newroz": NEWROZ_MSGS,
         "djs": DJ_BY_PROGRAM,
         "djImages": DJ_IMAGE_URLS,
+        "pinnedDjMessages": PINNED_DJ_MESSAGES,
         "ablyToken": ably_token,
         "ablyChannel": ably_channel,
         "ablyEnabled": bool(ably_token),
@@ -622,6 +639,17 @@ html_code = f"""
             padding: 1.2vh;
             background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
             box-shadow: inset 0 0 0 1px rgba(0,0,0,0.55);
+        }}
+        .chat-pinned {{
+            padding: 0.9vh 1vh;
+            border-radius: 12px;
+            margin-bottom: 0.9vh;
+            background: rgba(255, 69, 0, 0.14);
+            border: 1px solid rgba(255, 69, 0, 0.26);
+            color: rgba(255,255,255,0.92);
+            font-size: clamp(12px, 1.15vh, 14px);
+            font-weight: 700;
+            letter-spacing: 0.2px;
         }}
         .col-chat .chat-log::-webkit-scrollbar {{ width: 8px; }}
         .col-chat .chat-log::-webkit-scrollbar-track {{ background: rgba(255,255,255,0.03); border-radius: 999px; }}
@@ -1016,6 +1044,7 @@ html_code = f"""
         <div style="text-align:center; color:#ff4500; font-size:1.1vh; font-weight:bold; letter-spacing:4px;">CANLI SOHBET</div>
         <div id="chatAdminLine"><span class="admin-label">ADMIN:</span> <span class="admin-name">--</span> <span class="admin-active">(aktif)</span></div>
         <div class="chat-wrap">
+            <div id="chatPinned" class="chat-pinned"></div>
             <div id="chatLog" class="chat-log"></div>
             <div class="chat-input">
                 <input id="chatName" placeholder="İsim" maxlength="24" />
@@ -1038,6 +1067,7 @@ html_code = f"""
         const sendEl = document.getElementById('chatSend');
         const statusEl = document.getElementById('chatStatus');
         const adminLineEl = document.getElementById('chatAdminLine');
+        const pinnedEl = document.getElementById('chatPinned');
 
         try {{
         // Presence'a göre aktiflik rengi:
@@ -1099,6 +1129,26 @@ html_code = f"""
             updateActiveColors();
         }};
 
+        const normalizeDjKeyForPinned = (s) => {{
+            const t = (s || '').toString().trim().toLowerCase();
+            // Türkçe karakterleri sadeleştir + boşluk/altçizgi/çizgi temizle
+            return t
+                .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+                .replace(/\\s+/g, '')
+                .replace(/[_-]+/g, '_');
+        }};
+
+        const updatePinnedForDj = (djText) => {{
+            if (!pinnedEl) return;
+            const djName = normalizeDjKeyForPinned(
+                (djText || '').toString().replace(/^DJ\\s*/i, '')
+            );
+            const msgMap = (radioData && radioData.pinnedDjMessages) ? radioData.pinnedDjMessages : {{}};
+            const msg = (djName && msgMap && msgMap[djName]) ? String(msgMap[djName] || '') : '';
+            pinnedEl.style.display = msg ? 'block' : 'none';
+            pinnedEl.textContent = msg || '';
+        }};
+
         // Dışarıdan (program değişince) anlık admin satırını güncellemek için global fonksiyon
         window.setChatAdminName = (djText) => {{
             if (!adminLineEl) return;
@@ -1107,6 +1157,9 @@ html_code = f"""
                 '<span class=\"admin-label\">ADMIN:</span> ' +
                 '<span class=\"admin-name\">' + nm + '</span> ' +
                 '<span class=\"admin-active\">(aktif)</span>';
+
+            // Chat içinde sabit mesajı da güncelle
+            try {{ updatePinnedForDj(djText); }} catch (e) {{}}
         }};
 
         if (!radioData.ablyEnabled) {{
