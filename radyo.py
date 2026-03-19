@@ -14,6 +14,17 @@ st.set_page_config(page_title="HALKLARIN SESİ RADYOSU", layout="wide")
 
 
 # 2. GÖRSEL VERİLERİ
+# DJ görselleri: DJ adını yaz, karşısına link yapıştır.
+# (Küçük/büyük harf, Türkçe karakter, boşluk/altçizgi farklarını tolere eder.)
+DJ_IMAGE_URLS = {
+    "xalo_56": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/animasyonlar/halil.gif",
+    "serhadoo": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/animasyonlar/serhat.jpg",
+    "şaşal_bey56": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/animasyonlar/harun.gif",
+    "doktorbey56": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/animasyonlar/hamdullah.gif",
+    "yusuf": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/animasyonlar/yusuf.gif",
+}
+
+
 IMG = {
     "grup_yorum": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Songs/Grup%20Yorum.jpg",
     "soldan_sesler": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Soldan%20Sesler/gemini_generated_image_7s372s7s372s7s37.png",
@@ -320,15 +331,15 @@ PLAYLISTS = {
 
 # Program -> DJ ismi (örnek). İstersen değiştirebilirsin.
 DJ_BY_PROGRAM = {
-    "ahmet_kaya": "DJ AHMET",
-    "ermeni_ezgileri": "DJ ARİNA",
-    "mozaik": "DJ MOZAAİK",
-    "tsm": "DJ NAZLI",
-    "tiyatro": "DJ TİYATRO",
-    "soldan_sesler": "DJ SELİM",
-    "tasavvuf": "DJ HAKİ",
-    "anadolu_rock": "DJ ROCK",
-    "grup_yorum": "DJ YORUM",
+    "ahmet_kaya": "DJ xalo_56",
+    "ermeni_ezgileri": "DJ xalo_56",
+    "mozaik": "DJ serhadoo",
+    "tsm": "DJ şaşal_bey56",
+    "tiyatro": "DJ şaşal_bey56",
+    "soldan_sesler": "DJ doktorbey56",
+    "tasavvuf": "DJ yusuf",
+    "anadolu_rock": "DJ yusuf",
+    "grup_yorum": "DJ doktorbey56",
 }
 
 # --- CANLI CHAT (ABLY) ---
@@ -407,6 +418,7 @@ data_json = json.dumps(
         "imgs": IMG,
         "newroz": NEWROZ_MSGS,
         "djs": DJ_BY_PROGRAM,
+        "djImages": DJ_IMAGE_URLS,
         "ablyToken": ably_token,
         "ablyChannel": ably_channel,
         "ablyEnabled": bool(ably_token),
@@ -490,12 +502,96 @@ html_code = f"""
         
         .top-header {{ height: 18dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; border-bottom: 1px solid #111; position: relative; }}
         .header-title {{ font-size: 5.5vh; letter-spacing: 20px; font-weight: 200; text-transform: uppercase; }}
+
+        /* Üstteki DJ etiketi (pembe + küçük animasyon) */
+        #dj-top {{
+            position: absolute;
+            left: 46px; /* biraz sağa al */
+            top: 6px; /* saat ile aynı yükseklik */
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 0;
+            color: #ff4fd6; /* pembe */
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-size: 1.05vh;
+            opacity: 0.95;
+            animation: dj-breathe 1.8s ease-in-out infinite alternate;
+            white-space: nowrap;
+            flex-direction: column; /* ikon üstte, isim altta */
+        }}
+        #dj-top .dj-label {{ color: #ff4fd6; }}
+        #dj-top .dj-name {{ color: #ffae00; }}
+        #dj-top img {{
+            /* DJ/GIF görseli daha büyük */
+            width: clamp(120px, 14vh, 220px);
+            height: clamp(120px, 14vh, 220px);
+            flex: 0 0 auto;
+            color: #fff; /* DJ ikonu siyah-beyaz */
+            object-fit: contain;
+            filter: grayscale(1) brightness(1.55) contrast(1.15);
+            opacity: 0.98;
+            will-change: transform;
+            animation: dj-img-move 1.1s ease-in-out infinite;
+            background: transparent; /* arka plan/kutu olmasın */
+            border: none; /* arka plan/kutu olmasın */
+            border-radius: 0; /* arka plan/kutu olmasın */
+            padding: 0; /* arka plan/kutu olmasın */
+        }}
+
+        /* Link ile gelen DJ görsellerinde filtre uygulama */
+        #dj-top img.dj-custom {{
+            filter: none;
+        }}
+
+        /* şaşal_bey56 görseli: filtre yok */
+        #dj-top-img-sasal {{
+            filter: none;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+        }}
+        @keyframes dj-img-move {{
+            0% {{ transform: translateY(0px) rotate(-2deg) scale(1.00); }}
+            50% {{ transform: translateY(-6px) rotate(2deg) scale(1.02); }}
+            100% {{ transform: translateY(0px) rotate(-2deg) scale(1.00); }}
+        }}
+        #dj-top.dj-top-pop {{
+            animation: dj-pop 520ms ease-in-out 1;
+        }}
+        @keyframes dj-breathe {{
+            from {{ transform: translateY(0px); opacity: 0.70; }}
+            to {{ transform: translateY(-2px); opacity: 1; }}
+        }}
+        @keyframes dj-pop {{
+            0% {{ transform: scale(0.98) translateY(0px); opacity: 0.75; }}
+            60% {{ transform: scale(1.02) translateY(-1px); opacity: 1; }}
+            100% {{ transform: scale(1.00) translateY(0px); opacity: 0.95; }}
+        }}
         
         /* NEWROZ YAZISI - BİR ALTTA VE YAVAŞ */
         #newroz-sub {{ font-size: 1.8vh; color: #ff0000; letter-spacing: 8px; margin-top: 25px; font-weight: bold; animation: slow-flash 4s infinite; }}
         
-        /* SABİT DİNLEYİCİ SAYISI - SAĞ ÜST */
-        .live-stats {{ position: absolute; right: 40px; top: 40%; display: flex; align-items: center; gap: 10px; }}
+        /* SABİT DİNLEYİCİ SAYISI - SAĞ ÜST (GIF ile hizalı) */
+        .live-stats {{
+            position: absolute;
+            right: 40px;
+            top: 6px;
+            /* GIF büyüyünce görsel merkez hizası için biraz aşağı al */
+            transform: translateY(18px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }}
+        .analog-clock {{ width: 78px; height: 78px; filter: drop-shadow(0 0 6px rgba(255,255,255,0.10)); }}
+        .analog-clock canvas {{ width: 78px; height: 78px; display: block; }}
+        .viewer-line {{ display: flex; align-items: center; gap: 10px; }}
         .live-circle {{ width: 8px; height: 8px; background: #00ff00; border-radius: 50%; }}
         .viewer-text {{ color: rgba(0, 255, 0, 0.4); font-size: 1.2vh; font-weight: bold; letter-spacing: 2px; }}
 
@@ -504,6 +600,19 @@ html_code = f"""
         .col-flow {{ flex: 20; border-right: 1px solid #111; overflow: hidden; display: flex; flex-direction: column; }}
         .col-player {{ flex: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
         .col-chat {{ flex: 20; border-left: 1px solid #111; background: #050505; }}
+
+        .flow-title {{
+            padding: 1.1vh 1vh 0.8vh 1vh;
+            color: #ff4500;
+            font-weight: 900;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            font-size: 1.5vh;
+            border-bottom: 1px solid #111;
+            margin-bottom: 1.2vh;
+            opacity: 0.95;
+            white-space: nowrap;
+        }}
 
         /* Chat UI (scoped to chat column) */
         .col-chat {{ display: flex; flex-direction: column; }}
@@ -575,6 +684,24 @@ html_code = f"""
         .col-chat #chatSend:active {{ transform: translateY(1px); }}
         .col-chat #chatSend:disabled {{ opacity: 0.55; cursor: not-allowed; }}
         .col-chat #chatStatus {{ margin-top: 0.2vh; font-size: clamp(10px, 1.0vh, 12px); color: rgba(255,255,255,0.50); }}
+
+        /* Sohbet içi admin (anlık DJ) satırı */
+        .col-chat #chatAdminLine {{
+            text-align: center;
+            color: rgba(255, 255, 255, 0.86);
+            font-size: clamp(11px, 1.15vh, 13px);
+            letter-spacing: 2px;
+            margin-top: 0.7vh;
+            margin-bottom: 0.2vh;
+            padding: 0.65vh 0.8vh;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            user-select: none;
+        }}
+        .col-chat #chatAdminLine .admin-label {{ color: #ff4500; font-weight: 900; }}
+        .col-chat #chatAdminLine .admin-name {{ color: #ffffff; font-weight: 800; }}
+        .col-chat #chatAdminLine .admin-active {{ color: rgba(0,255,0,0.70); font-weight: 900; }}
         
         /* Yayın akışı: kaydırmasız, 1 ekrana sığsın */
         .row-item {{ flex: 1 1 0; min-height: 0; padding: 0.95vh 1vh; border-bottom: 1px solid rgba(255,255,255,0.06); opacity: 0.38; }}
@@ -589,8 +716,8 @@ html_code = f"""
         
         #display-song-name {{ font-size: 2vh; font-weight: 300; letter-spacing: 4px; margin-top: 5vh; text-align: center; text-transform: uppercase; }}
         #display-category-name {{ color:#ff4500; font-size:1.2vh; letter-spacing:7px; margin-top:1.5vh; font-weight: bold; }}
-        #display-dj-name {{ color:#ff4500; font-size:1.05vh; letter-spacing:5px; margin-top:0.9vh; font-weight: bold; }}
-        #display-dj-note {{ color: rgba(255,255,255,0.55); font-size:0.95vh; letter-spacing:3px; margin-top:0.35vh; font-weight: 600; }}
+        /* DJ artık üstte gösterilecek; alttaki tekrar görünmesin */
+        #display-dj-name, #display-dj-note {{ display: none; }}
         
         @keyframes slow-flash {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.2; }} }}
         
@@ -612,13 +739,24 @@ html_code = f"""
             letter-spacing: 10px;
         }}
         html.mobile-layout .live-stats, body.mobile-layout .live-stats {{
-            position: static;
-            margin-top: 10px;
+            position: absolute;
+            right: 14px;
+            top: 6px; /* DJ ile aynı yükseklik */
+            margin-top: 0;
+            gap: 6px;
+            transform: translateY(16px);
         }}
+        html.mobile-layout .analog-clock {{ width: 60px; height: 60px; }}
+        html.mobile-layout .analog-clock canvas {{ width: 60px; height: 60px; }}
+        html.mobile-layout .viewer-text {{ font-size: 1.0vh; }}
         html.mobile-layout #newroz-sub, body.mobile-layout #newroz-sub {{
             font-size: clamp(12px, 2.1vh, 18px);
             letter-spacing: 5px;
             margin-top: 12px;
+        }}
+        html.mobile-layout #dj-top img, body.mobile-layout #dj-top img {{
+            width: clamp(110px, 13vh, 200px);
+            height: clamp(110px, 13vh, 200px);
         }}
         html.mobile-layout .viewer-text, body.mobile-layout .viewer-text {{
             font-size: 1.0vh;
@@ -663,7 +801,12 @@ html_code = f"""
             letter-spacing: 3px;
         }}
         html.mobile-layout #display-category-name, body.mobile-layout #display-category-name {{
-            display: none; /* sadece şarkı ismi kalsın */
+            display: block; /* program başlığı tekrar görünsün */
+            color: #ff4500;
+            font-size: clamp(12px, 2.1vh, 16px);
+            letter-spacing: 4px;
+            margin-top: 0.3dvh;
+            font-weight: 900;
         }}
         html.mobile-layout #display-dj-name, body.mobile-layout #display-dj-name {{
             margin-top: 0.6dvh;
@@ -787,13 +930,50 @@ html_code = f"""
 <div class="top-header">
     <div class="header-title">HALKLARIN SESİ RADYOSU</div>
     <div id="newroz-sub">NEWROZ PÎROZ BE!</div>
+    <div id="dj-top">
+        <!-- DJ animasyon görseli (siyah-beyaz, CSS ile hareket) -->
+        <img
+            id="dj-top-img"
+            alt="DJ"
+            draggable="false"
+            loading="eager"
+            decoding="async"
+            style="display:none;"
+            src=""
+        />
+        <img
+            id="dj-top-img-serhadoo"
+            alt="DJ Serhadoo"
+            draggable="false"
+            style="display:none;"
+            loading="eager"
+            decoding="async"
+            src="https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/animasyonlar/Trending%20GIF%20dancing%20colorful%20feeling%20it%20galantis%20pharmacy%20at%20the%20club%20louder%20harder%20better.gif"
+        />
+        <img
+            id="dj-top-img-sasal"
+            alt="DJ şaşal_bey56"
+            draggable="false"
+            style="display:none;"
+            loading="eager"
+            decoding="async"
+            src="https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/animasyonlar/Trending%20GIF%20dancing%20colorful%20feeling%20it%20galantis%20pharmacy%20at%20the%20club%20louder%20harder%20better.gif"
+        />
+        <span id="dj-top-text">DJ: --</span>
+    </div>
     <div class="live-stats">
-        <div class="live-circle"></div>
-        <div class="viewer-text">CANLI: <span id="viewers">12</span> DİNLEYİCİ</div>
+        <div class="analog-clock">
+            <canvas id="analogClock" width="78" height="78"></canvas>
+        </div>
+        <div class="viewer-line">
+            <div class="live-circle"></div>
+            <div class="viewer-text">CANLI: <span id="viewers">12</span> DİNLEYİCİ</div>
+        </div>
     </div>
 </div>
 <div class="main-grid">
     <div class="panel col-flow">
+        <div class="flow-title">YAYIN AKIŞI</div>
         <div class="row-item" data-start="0" data-end="3">
             <div>00:00 — 03:00</div>
             <div style="font-weight:bold; color:#ff4500;">AHMET KAYA ŞARKILARI</div>
@@ -850,6 +1030,7 @@ html_code = f"""
     </div>
     <div class="panel col-chat">
         <div style="text-align:center; color:#ff4500; font-size:1.1vh; font-weight:bold; letter-spacing:4px;">CANLI SOHBET</div>
+        <div id="chatAdminLine"><span class="admin-label">ADMIN:</span> <span class="admin-name">--</span> <span class="admin-active">(aktif)</span></div>
         <div class="chat-wrap">
             <div id="chatLog" class="chat-log"></div>
             <div class="chat-input">
@@ -872,6 +1053,7 @@ html_code = f"""
         const textEl = document.getElementById('chatText');
         const sendEl = document.getElementById('chatSend');
         const statusEl = document.getElementById('chatStatus');
+        const adminLineEl = document.getElementById('chatAdminLine');
 
         try {{
         // Presence'a göre aktiflik rengi:
@@ -931,6 +1113,16 @@ html_code = f"""
             logEl.scrollTop = logEl.scrollHeight;
 
             updateActiveColors();
+        }};
+
+        // Dışarıdan (program değişince) anlık admin satırını güncellemek için global fonksiyon
+        window.setChatAdminName = (djText) => {{
+            if (!adminLineEl) return;
+            const nm = normalizeName((djText || 'DJ').toString().replace(/^DJ\\s*/i, ''));
+            adminLineEl.innerHTML =
+                '<span class=\"admin-label\">ADMIN:</span> ' +
+                '<span class=\"admin-name\">' + nm + '</span> ' +
+                '<span class=\"admin-active\">(aktif)</span>';
         }};
 
         if (!radioData.ablyEnabled) {{
@@ -1130,6 +1322,126 @@ html_code = f"""
                 if (statusEl) statusEl.textContent = "Chat hata: " + (e && e.message ? e.message : String(e));
             }} catch (_) {{ }}
         }}
+    }})();
+
+    // Sağ üst analog saat (canvas)
+    (function initClock() {{
+        const canvas = document.getElementById('analogClock');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const draw = () => {{
+            const now = new Date();
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const r = Math.min(w, h) / 2 - 3;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Arka daire + cam hissi (siyah-beyaz)
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            const baseGrad = ctx.createRadialGradient(
+                cx - r * 0.25, cy - r * 0.25, r * 0.1,
+                cx, cy, r
+            );
+            baseGrad.addColorStop(0, 'rgba(255,255,255,0.10)');
+            baseGrad.addColorStop(0.55, 'rgba(255,255,255,0.04)');
+            baseGrad.addColorStop(1, 'rgba(255,255,255,0.01)');
+            ctx.fillStyle = baseGrad;
+            ctx.fill();
+
+            // Dış çerçeve
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Yansıma (üstten gelen hafif parıltı)
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            const gloss = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+            gloss.addColorStop(0, 'rgba(255,255,255,0.18)');
+            gloss.addColorStop(0.35, 'rgba(255,255,255,0.05)');
+            gloss.addColorStop(1, 'rgba(255,255,255,0.00)');
+            ctx.fillStyle = gloss;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Saat işaretleri (12 adet)
+            ctx.strokeStyle = 'rgba(255,255,255,0.38)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 12; i++) {{
+                const ang = (i / 12) * Math.PI * 2 - Math.PI / 2;
+                const x1 = cx + Math.cos(ang) * (r - 6);
+                const y1 = cy + Math.sin(ang) * (r - 6);
+                const x2 = cx + Math.cos(ang) * (r - 2);
+                const y2 = cy + Math.sin(ang) * (r - 2);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }}
+
+            // Yumuşak kollar: milisaniyeyi de açığa katıyoruz
+            const sec = now.getSeconds() + (now.getMilliseconds() / 1000);
+            const min = now.getMinutes() + (sec / 60);
+            const hr = (now.getHours() % 12) + (min / 60);
+
+            // Kollar
+            const hourAng = (hr / 12) * Math.PI * 2 - Math.PI / 2;
+            const minAng = (min / 60) * Math.PI * 2 - Math.PI / 2;
+            const secAng = (sec / 60) * Math.PI * 2 - Math.PI / 2;
+
+            // Saat kolu
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(hourAng) * (r * 0.62), cy + Math.sin(hourAng) * (r * 0.62));
+            ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Dakika kolu
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(minAng) * (r * 0.86), cy + Math.sin(minAng) * (r * 0.86));
+            ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+            ctx.lineWidth = 1.6;
+            ctx.stroke();
+
+            // Saniye kolu
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(secAng) * (r * 0.85), cy + Math.sin(secAng) * (r * 0.85));
+            ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+
+            // Merkez nokta
+            ctx.beginPath();
+            ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+        }};
+
+        draw();
+        // Yumuşak animasyon için requestAnimationFrame (CPU'yu fazla yormamak için 50ms'de bir çiz)
+        let lastT = 0;
+        const loop = (t) => {{
+            if (!lastT || (t - lastT) > 50) {{
+                draw();
+                lastT = t;
+            }}
+            requestAnimationFrame(loop);
+        }};
+        requestAnimationFrame(loop);
     }})();
 
     // Genel şarkı başlığı biçimlendirici
@@ -1384,10 +1696,114 @@ html_code = f"""
         }}
 
         document.getElementById('display-category-name').innerText = name;
+        const djText = (radioData.djs && radioData.djs[key]) ? radioData.djs[key] : 'DJ';
+
+        // Sohbet panelinin üstünde admin (anlık DJ) yaz
+        if (window.setChatAdminName) {{
+            try {{ window.setChatAdminName(djText); }} catch (e) {{}}
+        }}
+
+        // Üstteki DJ etiketi (DJ: pembe, isim farklı renk)
+        const djTopTextEl = document.getElementById('dj-top-text');
+        if (djTopTextEl) {{
+            const escapeHtml = (s) => {{
+                const t = (s === null || s === undefined) ? '' : String(s);
+                return t
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }};
+
+            const djName = (djText || 'DJ').replace(/^DJ\\s*/i, '') || 'DJ';
+            // DJ görselleri: xalo_56, serhadoo, şaşal_bey56
+            const djImgEl = document.getElementById('dj-top-img');
+            const djImgSerhadooEl = document.getElementById('dj-top-img-serhadoo');
+            const djImgSasalEl = document.getElementById('dj-top-img-sasal');
+
+            const normalizeDjKey = (s) => {{
+                const t = (s || '').toString().trim().toLowerCase();
+                // Türkçe karakterleri sadeleştir + boşluk/altçizgi/çizgi temizle
+                return t
+                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+                    .replace(/\\s+/g, '')
+                    .replace(/[_-]+/g, '_');
+            }};
+            const djKey = normalizeDjKey(djName);
+
+            const djImages = (radioData && radioData.djImages) ? radioData.djImages : null;
+            const pickDjImageUrl = (key) => {{
+                if (!djImages) return '';
+                try {{
+                    for (const k of Object.keys(djImages)) {{
+                        if (normalizeDjKey(k) === key) return String(djImages[k] || '');
+                    }}
+                }} catch (e) {{}}
+                return '';
+            }};
+            const chosenUrl = pickDjImageUrl(djKey);
+
+            const isXalo = (djKey === 'xalo_56' || djKey === 'xalo56');
+            const isSerhadoo = (djKey === 'serhadoo');
+            const isSasal = (djKey === 'sasal_bey56' || djKey === 'sasalbey56' || djKey === 'sasal');
+
+            const setVisible = (el, v) => {{ if (el) el.style.display = v ? 'block' : 'none'; }};
+            // DJ_IMAGE_URLS içinde bu DJ için link varsa onu kullan (tüm DJ'ler için)
+            const ok = chosenUrl && !String(chosenUrl).includes('PASTE_');
+            if (djImgEl) {{
+                if (ok) {{
+                    djImgEl.setAttribute('data-base-src', chosenUrl);
+                    djImgEl.classList.add('dj-custom');
+                }} else {{
+                    djImgEl.classList.remove('dj-custom');
+                }}
+            }}
+
+            // Link varsa her DJ'de aynı görsel alanını kullan; yoksa eski kural (xalo/serhadoo/sasal)
+            setVisible(djImgEl, ok ? true : isXalo);
+            setVisible(djImgSerhadooEl, ok ? false : isSerhadoo);
+            setVisible(djImgSasalEl, ok ? false : isSasal);
+
+            // GIF'ler bazen "gelip gidiyor" çünkü her tick'te cache-bust yapınca yeniden yükleniyor.
+            // Bu yüzden sadece DJ/program değiştiğinde veya URL değiştiğinde src set edeceğiz.
+            const refreshSrc = (el, force=false) => {{
+                if (!el) return;
+                const base = (el.getAttribute('data-base-src') || el.getAttribute('src') || '').toString();
+                if (!base) return;
+                const cleanBase = base.split('?')[0];
+
+                const lastBase = el.getAttribute('data-last-base') || '';
+                const should = force || (cleanBase !== lastBase);
+                if (!should) return;
+
+                el.setAttribute('data-last-base', cleanBase);
+                el.onerror = () => {{
+                    // Yüklenemezse alan tamamen boş kalmasın
+                    el.style.display = 'none';
+                }};
+
+                const bust = `t=${{Date.now()}}`;
+                el.src = cleanBase + (cleanBase.includes('?') ? '&' : '?') + bust;
+            }};
+
+            const keyChanged = (activeKey !== key);
+            if (ok) {{
+                refreshSrc(djImgEl, keyChanged);
+            }} else {{
+                if (isXalo) refreshSrc(djImgEl, keyChanged);
+                if (isSerhadoo) refreshSrc(djImgSerhadooEl, keyChanged);
+                if (isSasal) refreshSrc(djImgSasalEl, keyChanged);
+            }}
+            djTopTextEl.innerHTML =
+                '<span class="dj-label">DJ:</span> <span class="dj-name">' + escapeHtml(djName) + '</span>';
+        }}
+
+        // (Alttaki DJ alanları CSS ile gizli; yine de değer set edelim)
         const djEl = document.getElementById('display-dj-name');
-        if (djEl) djEl.innerText = (radioData.djs && radioData.djs[key]) ? radioData.djs[key] : 'DJ';
+        if (djEl) djEl.innerText = djText;
         const djNoteEl = document.getElementById('display-dj-note');
-        if (djNoteEl) djNoteEl.innerText = 'Canlı yayın ekibi • ' + ((radioData.djs && radioData.djs[key]) ? radioData.djs[key].replace(/^DJ\\s*/i,'') : 'Bilgi');
+        if (djNoteEl) djNoteEl.innerText = 'Canlı yayın ekibi • ' + (djText.replace(/^DJ\\s*/i,'') || 'Bilgi');
 
         // Görsel: cache'e takılmasın + yüklenemezse fallback
         const diskImgEl = document.getElementById('main-disk-img');
@@ -1409,6 +1825,16 @@ html_code = f"""
 
         const keyChanged = (activeKey !== key);
         if (keyChanged) activeKey = key;
+
+        // Program değişince üstteki DJ etiketinde pop animasyonu
+        if (keyChanged) {{
+            const djTopEl = document.getElementById('dj-top');
+            if (djTopEl) {{
+                djTopEl.classList.remove('dj-top-pop');
+                void djTopEl.offsetWidth; // animasyonu tekrar tetiklemek için
+                djTopEl.classList.add('dj-top-pop');
+            }}
+        }}
 
         // Playlist değiştiğinde (aynı URL denk gelse bile) mutlaka yeniden senkronla
         if (keyChanged || audio.src !== currentTrack.url) {{
