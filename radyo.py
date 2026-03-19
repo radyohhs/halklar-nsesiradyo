@@ -1939,8 +1939,12 @@ siktir
             // Spam kontrolü (hız + tekrar + saniye penceresi)
             try {{
                 const now = Date.now();
-                if (now - myLastSendAt < 1200) {{
-                    if (statusEl) statusEl.textContent = "Spam engellendi: çok hızlı mesaj attın.";
+                const cooldownMs = 10000; // 10 saniyede 1 mesaj
+                const diff = now - myLastSendAt;
+                if (diff < cooldownMs) {{
+                    const remainingMs = cooldownMs - diff;
+                    const remainingSec = Math.ceil(remainingMs / 1000);
+                    if (statusEl) statusEl.textContent = "Spam engellendi: 10 saniye bekleyin. " + remainingSec + " sn sonra tekrar deneyin.";
                     return;
                 }}
                 myLastSendAt = now;
@@ -2235,6 +2239,7 @@ siktir
     let trackStartAtMs = Date.now();
     let trackStartTime = 0;
     let currentTrackUrlGuard = '';
+    let lastAudioErrorAt = 0;
 
     audio.addEventListener('timeupdate', () => {{
         try {{
@@ -2256,6 +2261,7 @@ siktir
     audio.addEventListener('error', () => {{
         try {{
             const err = audio.error;
+            lastAudioErrorAt = Date.now();
             const msg =
                 err && err.message ? err.message :
                 (err ? String(err.code || err) : 'Ses yükleme hatası');
@@ -2326,7 +2332,16 @@ siktir
         lastProgressAt = Date.now();
         lastProgressTime = seekTime;
         const applySeek = () => {{
-            try {{ audio.currentTime = seekTime; }} catch (_) {{ }}
+            try {{
+                let target = seekTime;
+                const dur = audio && typeof audio.duration === 'number' ? audio.duration : NaN;
+                if (typeof dur === 'number' && isFinite(dur) && dur > 0) {{
+                    // Yanlış/eksik duration bilgisinden dolayı "süreden ileri seek" yapıp parçayı bitmiş gibi gösterebiliyor.
+                    // O yüzden clamping uyguluyoruz.
+                    target = Math.min(target, Math.max(0, dur - 0.25));
+                }}
+                audio.currentTime = target;
+            }} catch (_) {{ }}
             if (shouldPlay) safePlay();
         }};
 
@@ -2556,8 +2571,15 @@ siktir
             setSrcAndSeek(currentTrack.url, seekTime, !isMuted);
         }}
 
-        if (Math.abs(audio.currentTime - seekTime) > 3) {{
-            audio.currentTime = seekTime;
+        if (audio.readyState >= 2 && Math.abs(audio.currentTime - seekTime) > 8) {{
+            try {{
+                let target = seekTime;
+                const dur = audio && typeof audio.duration === 'number' ? audio.duration : NaN;
+                if (typeof dur === 'number' && isFinite(dur) && dur > 0) {{
+                    target = Math.min(target, Math.max(0, dur - 0.25));
+                }}
+                audio.currentTime = target;
+            }} catch (_) {{}}
         }}
 
         // Şarkı takıldı / gerçekten ilerleme yoksa otomatik bir sonraki parçaya atla
@@ -2585,7 +2607,8 @@ siktir
                 timeLooksStuck &&
                 nextTrack && nextTrack.url &&
                 (!hasBuffered) &&
-                (lowReady || isPaused);
+                (lowReady || isPaused) &&
+                (lastAudioErrorAt && (now - lastAudioErrorAt) < 60000);
 
             if (shouldSkip && (now - lastStuckSkipAt) > 15000) {{
                 lastStuckSkipAt = now;
