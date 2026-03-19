@@ -335,15 +335,29 @@ DJ_BY_PROGRAM = {
 # API key'i koda yazma. Şunlardan birine koy:
 # - .streamlit/secrets.toml: ABLY_API_KEY="xxx:yyy"
 # - veya Windows ortam değişkeni: ABLY_API_KEY
-ably_api_key = st.secrets.get("ABLY_API_KEY", None) if hasattr(st, "secrets") else None
-ably_key_source = "secrets" if ably_api_key else None
+ably_api_key = None
+ably_key_source = None
+ably_channel = "radyo-chat"
+
+# Streamlit secrets bazen anahtar yoksa exception fırlatabiliyor.
+# Site çalışmaya devam etsin diye güvenli okuyoruz.
+try:
+    if hasattr(st, "secrets"):
+        # "in" kontrolü key yoksa fırlatmayı azaltır.
+        if "ABLY_API_KEY" in st.secrets:
+            ably_api_key = st.secrets["ABLY_API_KEY"]
+            ably_key_source = "secrets"
+        if "ABLY_CHANNEL" in st.secrets:
+            ably_channel = st.secrets["ABLY_CHANNEL"]
+except Exception:
+    pass
+
 if not ably_api_key:
     _env_key = os.getenv("ABLY_API_KEY")
     if _env_key:
         ably_api_key = _env_key
         ably_key_source = "env"
 
-ably_channel = st.secrets.get("ABLY_CHANNEL", "radyo-chat") if hasattr(st, "secrets") else "radyo-chat"
 _env_channel = os.getenv("ABLY_CHANNEL")
 if _env_channel:
     ably_channel = _env_channel
@@ -476,29 +490,6 @@ html_code = f"""
         
         .top-header {{ height: 18dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; border-bottom: 1px solid #111; position: relative; }}
         .header-title {{ font-size: 5.5vh; letter-spacing: 20px; font-weight: 200; text-transform: uppercase; }}
-        #dj-top {{
-            margin-top: 10px;
-            font-size: 1.25vh;
-            color: #ff4500;
-            font-weight: 900;
-            letter-spacing: 5px;
-            text-transform: uppercase;
-            white-space: nowrap;
-            opacity: 0.95;
-            animation: dj-breathe 1.8s ease-in-out infinite alternate;
-        }}
-        #dj-top.dj-top-pop {{
-            animation: dj-pop 520ms ease-in-out 1;
-        }}
-        @keyframes dj-breathe {{
-            from {{ transform: translateY(0px); opacity: 0.70; }}
-            to {{ transform: translateY(-2px); opacity: 1; }}
-        }}
-        @keyframes dj-pop {{
-            0% {{ transform: scale(0.98) translateY(0px); opacity: 0.75; }}
-            60% {{ transform: scale(1.02) translateY(-1px); opacity: 1; }}
-            100% {{ transform: scale(1.00) translateY(0px); opacity: 0.95; }}
-        }}
         
         /* NEWROZ YAZISI - BİR ALTTA VE YAVAŞ */
         #newroz-sub {{ font-size: 1.8vh; color: #ff0000; letter-spacing: 8px; margin-top: 25px; font-weight: bold; animation: slow-flash 4s infinite; }}
@@ -598,8 +589,8 @@ html_code = f"""
         
         #display-song-name {{ font-size: 2vh; font-weight: 300; letter-spacing: 4px; margin-top: 5vh; text-align: center; text-transform: uppercase; }}
         #display-category-name {{ color:#ff4500; font-size:1.2vh; letter-spacing:7px; margin-top:1.5vh; font-weight: bold; }}
-        /* DJ'yi sadece üstte göstereceğimiz için alttakini gizli tutuyoruz. */
-        #display-dj-name, #display-dj-note {{ display: none; }}
+        #display-dj-name {{ color:#ff4500; font-size:1.05vh; letter-spacing:5px; margin-top:0.9vh; font-weight: bold; }}
+        #display-dj-note {{ color: rgba(255,255,255,0.55); font-size:0.95vh; letter-spacing:3px; margin-top:0.35vh; font-weight: 600; }}
         
         @keyframes slow-flash {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.2; }} }}
         
@@ -796,7 +787,6 @@ html_code = f"""
 <div class="top-header">
     <div class="header-title">HALKLARIN SESİ RADYOSU</div>
     <div id="newroz-sub">NEWROZ PÎROZ BE!</div>
-    <div id="dj-top">DJ: --</div>
     <div class="live-stats">
         <div class="live-circle"></div>
         <div class="viewer-text">CANLI: <span id="viewers">12</span> DİNLEYİCİ</div>
@@ -1394,25 +1384,10 @@ html_code = f"""
         }}
 
         document.getElementById('display-category-name').innerText = name;
-        const djText = (radioData.djs && radioData.djs[key]) ? radioData.djs[key] : 'DJ';
-
-        // Üstteki DJ alanını güncelle
-        const djTopEl = document.getElementById('dj-top');
-        if (djTopEl) {{
-            djTopEl.innerText = 'DJ: ' + djText;
-            if (keyChanged) {{
-                djTopEl.classList.remove('dj-top-pop');
-                // reflow: animasyonu tekrar tetiklemek için
-                void djTopEl.offsetWidth;
-                djTopEl.classList.add('dj-top-pop');
-            }}
-        }}
-
-        // Alttaki DJ elemanları CSS ile gizli; yine de güncel tutalım.
         const djEl = document.getElementById('display-dj-name');
-        if (djEl) djEl.innerText = djText;
+        if (djEl) djEl.innerText = (radioData.djs && radioData.djs[key]) ? radioData.djs[key] : 'DJ';
         const djNoteEl = document.getElementById('display-dj-note');
-        if (djNoteEl) djNoteEl.innerText = 'Canlı yayın ekibi • ' + (djText.replace(/^DJ\\s*/i,'') || 'Bilgi');
+        if (djNoteEl) djNoteEl.innerText = 'Canlı yayın ekibi • ' + ((radioData.djs && radioData.djs[key]) ? radioData.djs[key].replace(/^DJ\\s*/i,'') : 'Bilgi');
 
         // Görsel: cache'e takılmasın + yüklenemezse fallback
         const diskImgEl = document.getElementById('main-disk-img');
