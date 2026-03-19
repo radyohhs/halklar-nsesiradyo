@@ -157,12 +157,12 @@ GY = [
 
 # --- RADYO TİYATROSU (TAM LİSTE) ---
 RT = [
-    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_1.mp3", "duration": 1800},
-    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_2.mp3", "duration": 1800},
-    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_3.mp3", "duration": 1800},
-    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_4.mp3", "duration": 1800},
-    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_5.mp3", "duration": 1800},
-    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/radyo_tiyatrosu_6.mp3", "duration": 1800}
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%201/kapidaki_adam.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%202/aci_bal.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%203/colde_bir_portakal.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%205/yorgun_atlar.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%204/bronte_kardesler_anne_bront.mp3", "duration": 1800},
+    {"url": "https://azcsreefvufvhkzbksyv.supabase.co/storage/v1/object/public/Radyo%20Tiyatrosu%206/Yildizlar%20Barisiyor.mp3", "duration": 1800}
 ]
 
 # --- TASAVVUF / DEYİŞLER (ÖZEL PLAYLIST) ---
@@ -437,6 +437,8 @@ html_code = f"""
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body, html {{ height: 100dvh; width: 100%; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }}
+
+        /* (Geçici telif uyarı bandı kaldırıldı) */
 
         /* Altta hafif kırmızı kıvılcımlar (2 katman, animasyonlu) */
         body::before {{
@@ -1293,8 +1295,7 @@ html_code = f"""
             const text = (textEl && textEl.value ? textEl.value.trim() : '');
             if (!text) return;
 
-            // Önce ekrana yaz (kullanıcı kendi mesajını hemen görsün)
-            pushMsg(name, text);
+            // Metin kutusunu hemen temizle
             if (textEl) textEl.value = '';
 
             // Kullanıcı adını presence'a da yansıt (aktiflik rengi doğru olsun)
@@ -1590,11 +1591,18 @@ html_code = f"""
 
     function safePlay() {{
         try {{
+            audio.muted = false;
+            audio.volume = 1.0;
             const p = audio.play();
             if (p && typeof p.catch === "function") {{
                 p.catch((err) => {{
+                    // Bazı tarayıcılarda, kullanıcı etkileşimi olmadan çağrılırsa
+                    // NotAllowedError dönebiliyor; bu durumda sadece sessizce çık.
+                    if (err && err.name === "NotAllowedError") {{
+                        return;
+                    }}
                     const msg = (err && err.name) ? (err.name + ": " + (err.message || "")) : String(err);
-                    setStatus("SES AÇILAMADI (tarayıcı engeli): " + msg);
+                    setStatus("SES HATASI: " + msg);
                 }});
             }}
         }} catch (err) {{
