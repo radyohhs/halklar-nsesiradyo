@@ -453,8 +453,6 @@ html_code = f"""
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body, html {{ height: 100dvh; width: 100%; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }}
 
-        /* (Geçici telif uyarı bandı kaldırıldı) */
-
         /* Altta hafif kırmızı kıvılcımlar (2 katman, animasyonlu) */
         body::before {{
             content: "";
@@ -565,7 +563,6 @@ html_code = f"""
             filter: none;
         }}
 
-        /* (eski özel DJ img id'leri kaldırıldı) */
         @keyframes dj-img-move {{
             0% {{ transform: translateY(0px) rotate(-2deg) scale(1.00); }}
             50% {{ transform: translateY(-6px) rotate(2deg) scale(1.02); }}
@@ -1594,6 +1591,7 @@ html_code = f"""
     }}
     let isMuted = true;
     let newrozIdx = 0;
+    let userActivatedPlayback = false;
     const audio = window.audioObj || new Audio();
     window.audioObj = audio;
     let activeKey = null;
@@ -1664,6 +1662,7 @@ html_code = f"""
 
     function setSrcAndSeek(url, seekTime, shouldPlay) {{
         audio.src = url;
+        try {{ audio.load(); }} catch (_) {{ }}
         const applySeek = () => {{
             try {{ audio.currentTime = seekTime; }} catch (_) {{ }}
             if (shouldPlay) safePlay();
@@ -1680,6 +1679,15 @@ html_code = f"""
             audio.addEventListener('loadedmetadata', onMeta);
         }}
     }}
+
+    // Kaynak değişiminde bazı tarayıcılarda pause'da kalabiliyor; hazır olunca tekrar dene.
+    audio.addEventListener('canplay', () => {{
+        try {{
+            if (!isMuted && userActivatedPlayback && audio.paused) {{
+                safePlay();
+            }}
+        }} catch (_) {{}}
+    }});
 
 
     function sync() {{
@@ -1894,6 +1902,13 @@ html_code = f"""
             audio.currentTime = seekTime;
         }}
 
+        // Bazı geçişlerde ses pause'da kalırsa kullanıcı tekrar basmak zorunda kalmasın.
+        try {{
+            if (!isMuted && userActivatedPlayback && audio.paused && audio.readyState >= 2) {{
+                safePlay();
+            }}
+        }} catch (_) {{}}
+
         document.querySelectorAll('.row-item').forEach(i => {{
             i.classList.toggle('active', h >= parseInt(i.dataset.start) && h < parseInt(i.dataset.end));
         }});
@@ -1934,6 +1949,7 @@ html_code = f"""
     }}, 5000);
 
     document.getElementById('control-button').onclick = () => {{
+        userActivatedPlayback = true;
         isMuted = !isMuted;
         document.getElementById('control-button').innerText = isMuted ? "YAYINI BAŞLAT" : "SESİ KAPAT";
         audio.muted = isMuted;
@@ -1948,6 +1964,7 @@ html_code = f"""
         const btn = document.getElementById('control-button');
         const tryUnmute = () => {{
             if (!isMuted) return;
+            userActivatedPlayback = true;
             isMuted = false;
             audio.muted = false;
             audio.volume = 1.0;
