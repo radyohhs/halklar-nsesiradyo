@@ -756,7 +756,7 @@ html_code = f"""
         .chat-name-active {{ color: rgba(0, 255, 120, 0.85); font-weight: 750; }}
         .chat-name-inactive {{ color: rgba(255, 100, 100, 0.85); font-weight: 750; }}
         .chat-time {{ color: rgba(255,255,255,0.52); font-weight: 600; }}
-        .col-chat .chat-input {{ display: flex; gap: 0.8vh; }}
+        .col-chat .chat-input {{ display: flex; gap: 0.8vh; align-items: center; }}
         .col-chat #chatName, .col-chat #chatText {{
             flex: 1;
             background: rgba(0,0,0,0.40);
@@ -766,6 +766,7 @@ html_code = f"""
             padding: 1vh 1.1vh;
             font-size: clamp(12px, 1.1vh, 14px);
             outline: none;
+            min-width: 0; /* flex'te taşmayı engeller (butonu saga kaydiran durum) */
         }}
         .col-chat #chatName {{ flex: 0.65; }}
         .col-chat #chatName:focus, .col-chat #chatText:focus {{
@@ -777,11 +778,12 @@ html_code = f"""
             color: #fff;
             border: 1px solid rgba(255,69,0,0.40);
             border-radius: 12px;
-            padding: 1vh 1.4vh;
+            padding: 1vh 1.1vh;
             font-size: clamp(12px, 1.05vh, 14px);
             cursor: pointer;
             white-space: nowrap;
             transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+            flex: 0 0 auto;
         }}
         .col-chat #chatSend:hover {{ background: rgba(255,69,0,0.22); border-color: rgba(255,69,0,0.55); }}
         .col-chat #chatSend:active {{ transform: translateY(1px); }}
